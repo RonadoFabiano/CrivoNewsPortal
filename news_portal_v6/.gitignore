@@ -1,20 +1,28 @@
 # ============================================================
-#  SEGREDOS — NUNCA commitar
+# SEGREDOS — NUNCA commitar
 # ============================================================
 .env
 .env.*
-!.env.example        # exceção: o exemplo PODE ser commitado
+!.env.example
 **/.env
 **/.env.*
-!**/.env.example     # exceção em qualquer subdiretório
+!**/.env.example
 
+application-local.properties
 application-local.yml
 application-secrets.yml
+application-secrets.properties
+
+**/application-local.properties
+**/application-local.yml
+**/application-secrets.yml
+**/application-secrets.properties
 
 # ============================================================
-#  Java / Maven / Spring Boot
+# Java / Maven / Spring Boot
 # ============================================================
 target/
+**/target/
 *.class
 *.jar
 *.war
@@ -24,20 +32,8 @@ hs_err_pid*
 replay_pid*
 .mvn/wrapper/maven-wrapper.jar
 
-# Spring Boot configs com segredo
-application-local.properties
-application-local.yml
-application-secrets.yml
-application-secrets.properties
-
-# ignorar em qualquer pasta
-**/application-local.properties
-**/application-local.yml
-**/application-secrets.yml
-**/application-secrets.properties
-
 # ============================================================
-#  IDE
+# IDE
 # ============================================================
 .idea/
 *.iws
@@ -51,26 +47,28 @@ application-secrets.properties
 *.sw?
 
 # ============================================================
-#  Node / React / Vite (frontend)
+# Node / React / Vite
 # ============================================================
 node_modules/
 **/node_modules/
 dist/
+**/dist/
 build/
+**/build/
 .next/
 .nuxt/
 .cache/
 *.local
 
 # ============================================================
-#  OS
+# OS
 # ============================================================
 .DS_Store
 Thumbs.db
 desktop.ini
 
 # ============================================================
-#  Logs
+# Logs
 # ============================================================
 logs/
 *.log
