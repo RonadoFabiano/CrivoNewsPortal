@@ -24,6 +24,18 @@ hs_err_pid*
 replay_pid*
 .mvn/wrapper/maven-wrapper.jar
 
+# Spring Boot configs com segredo
+application-local.properties
+application-local.yml
+application-secrets.yml
+application-secrets.properties
+
+# ignorar em qualquer pasta
+**/application-local.properties
+**/application-local.yml
+**/application-secrets.yml
+**/application-secrets.properties
+
 # ============================================================
 #  IDE
 # ============================================================
