@@ -1,0 +1,42 @@
+# Fly.io configuration — CRIVO News Backend
+# Documentação: https://fly.io/docs/reference/configuration/
+
+app = "crivo-news-backend"   # ← mude para um nome único (ex: crivo-news-api-2026)
+primary_region = "gru"       # São Paulo — mais próximo dos usuários BR
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Variáveis de ambiente NÃO sensíveis
+  SERVER_PORT = "8081"
+  SPRING_JPA_HIBERNATE_DDL_AUTO = "validate"
+
+# Variáveis sensíveis — configure via: flyctl secrets set NOME=VALOR
+# flyctl secrets set SPRING_DATASOURCE_URL="jdbc:postgresql://..."
+# flyctl secrets set SPRING_DATASOURCE_PASSWORD="sua_senha"
+# flyctl secrets set AI_GROQ_APIKEY="gsk_..."
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8081
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  # Health check — Fly.io verifica se o app está vivo
+  [[services.http_checks]]
+    interval = "30s"
+    timeout  = "10s"
+    path     = "/api/db/health"
+
+[resources]
+  # Free tier: 256MB RAM — suficiente para Spring com G1GC
+  cpu_kind = "shared"
+  cpus     = 1
+  memory_mb = 256

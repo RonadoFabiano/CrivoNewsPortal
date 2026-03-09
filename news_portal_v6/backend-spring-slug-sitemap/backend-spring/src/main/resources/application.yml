@@ -1,0 +1,75 @@
+server:
+  port: 8081
+  address: 0.0.0.0
+
+app:
+  site:
+    baseUrl: "${APP_BASE_URL:http://localhost:5173}"
+  rss:
+    defaultFeed: "https://news.google.com/rss?hl=pt-BR&gl=BR&ceid=BR:pt-419"
+  cors:
+    allowed-origins: "${APP_CORS_ORIGINS:*}"
+  ai:
+    worker:
+      enabled: true
+      delayMs: 25000
+      maxChars: 20000
+      maxRetries: 3
+
+spring:
+  profiles:
+    active: local
+  mvc:
+    problemdetails:
+      enabled: true
+
+  datasource:
+    url: "${SPRING_DATASOURCE_URL:jdbc:postgresql://db.SEU_PROJECT_REF.supabase.co:5432/postgres}"
+    driverClassName: org.postgresql.Driver
+    username: "${SPRING_DATASOURCE_USERNAME:postgres}"
+    password: "${SPRING_DATASOURCE_PASSWORD:SUA_SENHA_SUPABASE}"
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        jdbc:
+          lob:
+            non_contextual_creation: true
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+# ── Ollama local ──────────────────────────────────────────────────────────
+#ai:
+#  ollama:
+#    baseUrl: "${OLLAMA_BASE_URL:http://localhost:11434}"
+#    model: "${OLLAMA_MODEL:llama3.2:3b}"
+#    timeoutSeconds: 300
+
+# ── Groq API ──────────────────────────────────────────────────────────────
+ai:
+  groq:
+    apiKey: "${AI_GROQ_APIKEY:SUA_GROQ_API_KEY_1}"
+    apiKey2: "${AI_GROQ_APIKEY2:}"
+    model: "${AI_GROQ_MODEL:llama-3.3-70b-versatile}"
+    timeoutSeconds: 90
+
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# COMO CONFIGURAR:
+# Copie o arquivo .env.example para .env e preencha os valores reais.
+# O .env NÃO deve ser commitado no Git (já está no .gitignore).
+# ────────────────────────────────────────────────────────────────────────────

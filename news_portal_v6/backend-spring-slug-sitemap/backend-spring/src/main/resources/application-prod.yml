@@ -1,0 +1,46 @@
+# ── Perfil de PRODUÇÃO (Fly.io) ───────────────────────────────
+# Ativado automaticamente quando SPRING_PROFILES_ACTIVE=prod
+# Todas as configs sensíveis vêm de variáveis de ambiente
+
+server:
+  port: ${SERVER_PORT:8081}
+  address: 0.0.0.0
+
+spring:
+  datasource:
+    url:      ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: 3       # Supabase free: máx 15 conexões, conservador
+      minimum-idle: 1
+      connection-timeout: 30000
+      idle-timeout: 300000       # 5min — fecha mais rápido em produção
+      max-lifetime: 1200000      # 20min
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+app:
+  site:
+    baseUrl: ${APP_BASE_URL:https://crivo.news}
+  cors:
+    allowed-origins: "*"
+  ai:
+    worker:
+      enabled: true
+      delayMs: 20000             # 20s entre artigos (mais conservador em produção)
+      maxChars: 20000  # 70b free = 12k TPM — artigos até ~15k chars cabem com folga
+      maxRetries: 3
+
+ai:
+  groq:
+    apiKey:         ${AI_GROQ_APIKEY}
+    model:          llama-3.3-70b-versatile
+    timeoutSeconds: 90  # 70b é mais lento — timeout maior evita falsos erros
+  ollama:
+    baseUrl:        http://localhost:11434  # não usado em prod, mas evita erro de config
+    model:          llama3.2:3b
+    timeoutSeconds: 30

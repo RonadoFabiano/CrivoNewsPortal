@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO base — sobrescritos dinamicamente por cada página -->
+    <title>Portal de Notícias</title>
+    <meta name="description" content="Portal de notícias com as últimas notícias do Brasil e do mundo em tempo real." />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Portal de Notícias" />
+    <meta property="og:title" content="Portal de Notícias" />
+    <meta property="og:description" content="As últimas notícias do Brasil e do mundo." />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1557821552-17105176677c?w=1200&h=630&fit=crop" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Portal de Notícias" />
+    <meta name="twitter:description" content="As últimas notícias do Brasil e do mundo." />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📰</text></svg>" />
+
+    <!-- Schema.org WebSite -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Portal de Notícias",
+      "url": "http://localhost:3000",
+      "description": "Portal de notícias com as últimas notícias do Brasil e do mundo em tempo real.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "http://localhost:3000/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
