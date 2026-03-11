@@ -12,8 +12,8 @@ app:
   ai:
     worker:
       enabled: true
-      delayMs: 25000
-      maxChars: 20000
+      delayMs: 40000
+      maxChars: 5000
       maxRetries: 3
 
 spring:
@@ -24,13 +24,13 @@ spring:
       enabled: true
 
   datasource:
-    url: "${SPRING_DATASOURCE_URL:jdbc:postgresql://db.SEU_PROJECT_REF.supabase.co:5432/postgres}"
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driverClassName: org.postgresql.Driver
-    username: "${SPRING_DATASOURCE_USERNAME:postgres}"
-    password: "${SPRING_DATASOURCE_PASSWORD:SUA_SENHA_SUPABASE}"
     hikari:
-      maximum-pool-size: 5
-      minimum-idle: 2
+      maximum-pool-size: 12
+      minimum-idle: 3
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
@@ -61,7 +61,7 @@ spring:
 # ── Groq API ──────────────────────────────────────────────────────────────
 ai:
   groq:
-    apiKey: "${AI_GROQ_APIKEY:SUA_GROQ_API_KEY_1}"
+    apiKey: "${AI_GROQ_APIKEY:}"
     apiKey2: "${AI_GROQ_APIKEY2:}"
     model: "${AI_GROQ_MODEL:llama-3.3-70b-versatile}"
     timeoutSeconds: 90
@@ -73,3 +73,7 @@ ai:
 # Copie o arquivo .env.example para .env e preencha os valores reais.
 # O .env NÃO deve ser commitado no Git (já está no .gitignore).
 # ────────────────────────────────────────────────────────────────────────────
+logging:
+  level:
+    org.springframework.beans.factory: DEBUG
+    org.springframework.context: DEBUG
