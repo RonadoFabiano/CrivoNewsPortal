@@ -5,8 +5,7 @@ import NewsCard from "@/components/NewsCard";
 import Hero from "@/components/Hero";
 import { categories, NewsArticle } from "@/lib/newsData";
 import { fetchByTag, fetchByEntity } from "@/lib/api";
-
-const BASE_URL = "https://crivo.news";
+import { applySeo, resetSeo } from "@/lib/seo";
 
 type EntityType = "tag" | "country" | "person" | "topic";
 
@@ -51,30 +50,17 @@ export default function EntityPage({ type, value }: Props) {
   const meta       = TYPE_META[type];
   const humanLabel = unslugify(value.replace(/^pais-/, ""));
   const pageTitle  = `${meta.label} ${humanLabel}`;
-  const canonical  = `${BASE_URL}/${meta.prefix}/${value}`;
 
   // SEO
   useEffect(() => {
-    document.title = `${pageTitle} — CRIVO News`;
-    const desc = `Últimas notícias sobre ${humanLabel} com curadoria de IA. Informação filtrada.`;
-
-    const setMeta = (sel: string, attr: string, val: string) => {
-      let el = document.querySelector(sel) as HTMLMetaElement | null;
-      if (!el) { el = document.createElement("meta"); const m = sel.match(/\[([^=\]]+)="([^"]+)"\]/); if (m) el.setAttribute(m[1], m[2]); document.head.appendChild(el); }
-      el.setAttribute(attr, val);
-    };
-    setMeta('meta[name="description"]',        "content", desc);
-    setMeta('meta[property="og:title"]',       "content", `${pageTitle} — CRIVO News`);
-    setMeta('meta[property="og:description"]', "content", desc);
-    setMeta('meta[property="og:url"]',         "content", canonical);
-    setMeta('meta[property="og:type"]',        "content", "website");
-
-    let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!link) { link = document.createElement("link"); link.rel = "canonical"; document.head.appendChild(link); }
-    link.href = canonical;
-
-    return () => { document.title = "CRIVO News"; };
-  }, [type, value]);
+    const desc = `Ultimas noticias sobre ${humanLabel} com curadoria de IA. Informacao filtrada.`;
+    applySeo({
+      title: `${pageTitle} - CRIVO News`,
+      description: desc,
+      path: `/${meta.prefix}/${value}`,
+    });
+    return () => resetSeo();
+  }, [type, value, pageTitle, humanLabel, meta.prefix]);
 
   // Fetch
   useEffect(() => {

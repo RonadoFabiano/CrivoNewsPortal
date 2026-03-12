@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import SearchBar from "@/components/SearchBar";
 import BarraAgora from "@/components/BarraAgora";
 import BarraCotacoes from "@/components/BarraCotacoes";
@@ -12,7 +12,7 @@ interface HeaderProps {
   articles?: import("@/lib/api").NewsArticle[];
 }
 
-// ── Neural Canvas: partículas + retângulos flutuantes ─────────
+// â”€â”€ Neural Canvas: partÃ­culas + retÃ¢ngulos flutuantes â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function NeuralCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -28,7 +28,7 @@ function NeuralCanvas() {
     let rafId: number;
     let pts: Array<{
       x:number; y:number; vx:number; vy:number;
-      r:number; accent:boolean; φ:number; ω:number;
+      r:number; accent:boolean; phi:number; omega:number;
     }> = [];
     let rects: Array<{
       x:number; y:number; w:number; h:number;
@@ -46,8 +46,8 @@ function NeuralCanvas() {
         vx: (Math.random()-.5)*.55, vy: (Math.random()-.5)*.42,
         r: 1.6 + Math.random()*2.4,
         accent: Math.random() < .10,
-        φ: Math.random()*Math.PI*2,
-        ω: .016 + Math.random()*.024,
+        phi: Math.random()*Math.PI*2,
+        omega: .016 + Math.random()*.024,
       }));
 
       const nr = Math.max(5, Math.floor(W / 200));
@@ -71,7 +71,7 @@ function NeuralCanvas() {
     const frame = () => {
       ctx.clearRect(0, 0, W, H);
 
-      // Retângulos flutuantes
+      // RetÃ¢ngulos flutuantes
       rects.forEach(r => {
         r.x = (r.x + r.vx + W) % W;
         r.y = (r.y + r.vy + H) % H;
@@ -95,11 +95,11 @@ function NeuralCanvas() {
         ctx.restore();
       });
 
-      // Partículas
+      // PartÃ­culas
       pts.forEach(p => {
         p.x = (p.x + p.vx + W) % W;
         p.y = (p.y + p.vy + H) % H;
-        p.φ += p.ω;
+        p.phi += p.omega;
       });
 
       const D = Math.min(W * .21, 160);
@@ -120,9 +120,9 @@ function NeuralCanvas() {
       }
 
       pts.forEach(p => {
-        const pulse = .8 + Math.sin(p.φ)*.2;
+        const pulse = .8 + Math.sin(p.phi)*.2;
         const r     = p.r * pulse;
-        const alpha = .6 + Math.sin(p.φ)*.25;
+        const alpha = .6 + Math.sin(p.phi)*.25;
         if (p.accent) {
           const g = ctx.createRadialGradient(p.x,p.y,0, p.x,p.y, r*4.5);
           g.addColorStop(0, `rgba(${CA},${alpha*.85})`);
@@ -161,7 +161,7 @@ function NeuralCanvas() {
   );
 }
 
-// ── Loop reveal letra a letra ─────────────────────────────────
+// â”€â”€ Loop reveal letra a letra â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function LoopReveal() {
   const elRef = useRef<HTMLDivElement>(null);
 
@@ -181,7 +181,7 @@ function LoopReveal() {
         el.appendChild(s);
         spans.push(s);
       } else {
-        [...part].forEach(ch => {
+        Array.from(part).forEach(ch => {
           const s = document.createElement("span");
           s.textContent = ch === " " ? "\u00A0" : ch;
           s.style.cssText = "display:inline-block;opacity:0;transform:translateY(5px);";
@@ -240,10 +240,24 @@ function LoopReveal() {
   );
 }
 
-// ── Header principal ──────────────────────────────────────────
+// â”€â”€ Header principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function Header({ categories, onCategorySelect, activeCategory, articles }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [, navigate] = useLocation();
+
+  const toCategoryPath = (category: string) => {
+    if (category === "Todos") return "/";
+    return "/" + category
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "-");
+  };
+
+  const handleAnchorNavigate = (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    event.preventDefault();
+    navigate(href);
+  };
 
   return (
     <>
@@ -307,7 +321,7 @@ export default function Header({ categories, onCategorySelect, activeCategory, a
 
       <header className="sticky top-0 z-50 shadow-sm" style={{ background: "#fff" }}>
 
-        {/* ── BANNER ── */}
+        {/* â”€â”€ BANNER â”€â”€ */}
         <div style={{
           position: "relative",
           width: "100%",
@@ -329,7 +343,7 @@ export default function Header({ categories, onCategorySelect, activeCategory, a
             `,
           }} />
 
-          {/* Conteúdo */}
+          {/* ConteÃºdo */}
           <div style={{
             position: "relative", zIndex: 2,
             display: "flex", flexDirection: "column",
@@ -376,7 +390,7 @@ export default function Header({ categories, onCategorySelect, activeCategory, a
               }}>.</span>
             </div>
 
-            {/* Slogan — imponente */}
+            {/* Slogan â€” imponente */}
             <p style={{
               fontFamily: "'DM Sans', sans-serif",
               fontWeight: 700,
@@ -387,9 +401,9 @@ export default function Header({ categories, onCategorySelect, activeCategory, a
               animation: "crivoFadeUp 0.9s ease 0.4s both",
               textShadow: "0 1px 3px rgba(232,233,240,0.9)",
             }}>
-              A informação que separa o{" "}
+              {"A informação que separa o "}
               <em style={{ fontStyle:"normal", color:"#b84400", fontWeight:800 }}>fato</em>
-              {" "}do ruído
+              {" do ruído"}
             </p>
 
             {/* Subtexto loop */}
@@ -406,19 +420,19 @@ export default function Header({ categories, onCategorySelect, activeCategory, a
           }} />
         </div>
 
-        {/* ── NAV LINKS ── */}
+        {/* â”€â”€ NAV LINKS â”€â”€ */}
         <div className="container">
           <div className="flex items-center justify-between py-3">
             <nav className="hidden md:flex items-center gap-8">
-              <span onClick={() => { onCategorySelect("Todos"); navigate("/"); }} style={{ cursor:"pointer" }} className="text-sm font-medium text-foreground hover:text-accent transition-colors">Início</span>
-              <span onClick={() => navigate("/mapa")} style={{ cursor:"pointer", display:"inline-flex", alignItems:"center", gap:"5px" }} className="text-sm font-medium text-foreground hover:text-accent transition-colors">
+              <a href="/" onClick={(event) => { onCategorySelect("Todos"); handleAnchorNavigate(event, "/"); }} className="text-sm font-medium text-foreground hover:text-accent transition-colors">Inicio</a>
+              <a href="/mapa" onClick={(event) => handleAnchorNavigate(event, "/mapa")} style={{ display:"inline-flex", alignItems:"center", gap:"5px" }} className="text-sm font-medium text-foreground hover:text-accent transition-colors">
                 <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:"#22c55e", display:"inline-block", animation:"liveDot 1.5s ease-in-out infinite" }}/>
                 Mapa Global
-              </span>
-              <span onClick={() => navigate("/sobre")} style={{ cursor:"pointer" }} className="text-sm font-medium text-foreground hover:text-accent transition-colors">Sobre</span>
-              <span onClick={() => navigate("/contato")} style={{ cursor:"pointer" }} className="text-sm font-medium text-foreground hover:text-accent transition-colors">Contato</span>
+              </a>
+              <a href="/sobre" onClick={(event) => handleAnchorNavigate(event, "/sobre")} className="text-sm font-medium text-foreground hover:text-accent transition-colors">Sobre</a>
+              <a href="/contato" onClick={(event) => handleAnchorNavigate(event, "/contato")} className="text-sm font-medium text-foreground hover:text-accent transition-colors">Contato</a>
             </nav>
-            {/* Busca — só desktop */}
+            {/* Busca â€” sÃ³ desktop */}
             <div className="hidden md:block">
               <SearchBar />
             </div>
@@ -432,22 +446,21 @@ export default function Header({ categories, onCategorySelect, activeCategory, a
 
           {mobileMenuOpen && (
             <nav className="md:hidden pb-4 pt-2 border-t border-border space-y-3 animate-fade-in-up">
-              {/* Busca no mobile */}
               <div style={{ paddingBottom: "4px" }}>
                 <SearchBar />
               </div>
-              <span onClick={() => { navigate("/"); setMobileMenuOpen(false); }} style={{ cursor:"pointer" }} className="block text-sm font-medium text-foreground hover:text-accent transition-colors">Início</span>
-              <span onClick={() => { navigate("/mapa"); setMobileMenuOpen(false); }} style={{ cursor:"pointer", display:"flex", alignItems:"center", gap:"6px" }} className="block text-sm font-medium text-foreground hover:text-accent transition-colors">
+              <a href="/" onClick={(event) => { onCategorySelect("Todos"); setMobileMenuOpen(false); handleAnchorNavigate(event, "/"); }} className="block text-sm font-medium text-foreground hover:text-accent transition-colors">Inicio</a>
+              <a href="/mapa" onClick={(event) => { setMobileMenuOpen(false); handleAnchorNavigate(event, "/mapa"); }} style={{ display:"flex", alignItems:"center", gap:"6px" }} className="block text-sm font-medium text-foreground hover:text-accent transition-colors">
                 <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:"#22c55e", display:"inline-block" }}/>
                 Mapa Global
-              </span>
-              <span onClick={() => { navigate("/sobre"); setMobileMenuOpen(false); }} style={{ cursor:"pointer" }} className="block text-sm font-medium text-foreground hover:text-accent transition-colors">Sobre</span>
-              <span onClick={() => { navigate("/contato"); setMobileMenuOpen(false); }} style={{ cursor:"pointer" }} className="block text-sm font-medium text-foreground hover:text-accent transition-colors">Contato</span>
+              </a>
+              <a href="/sobre" onClick={(event) => { setMobileMenuOpen(false); handleAnchorNavigate(event, "/sobre"); }} className="block text-sm font-medium text-foreground hover:text-accent transition-colors">Sobre</a>
+              <a href="/contato" onClick={(event) => { setMobileMenuOpen(false); handleAnchorNavigate(event, "/contato"); }} className="block text-sm font-medium text-foreground hover:text-accent transition-colors">Contato</a>
             </nav>
           )}
         </div>
 
-        {/* ── CATEGORIAS: scroll horizontal no mobile, wrap no desktop ── */}
+        {/* â”€â”€ CATEGORIAS: scroll horizontal no mobile, wrap no desktop â”€â”€ */}
         <div style={{
           background: "#fff",
           boxShadow: "0 1px 0 #e0e0e8, 0 2px 8px rgba(0,0,0,0.06)",
@@ -462,56 +475,67 @@ export default function Header({ categories, onCategorySelect, activeCategory, a
             flexWrap: "nowrap",
             justifyContent: "flex-start",
             padding: "2px 16px",
-            // Esconde scrollbar visualmente mas mantém funcional
+            // Esconde scrollbar visualmente mas mantÃ©m funcional
             scrollbarWidth: "none",
             msOverflowStyle: "none",
           }}
           className="categories-scroll"
           >
-            {/* Botão Home fixo — sempre o primeiro */}
-            <button
-              onClick={() => { onCategorySelect("Todos"); setMobileMenuOpen(false); navigate("/"); }}
+            {/* BotÃ£o Home fixo â€” sempre o primeiro */}
+            <a
+              href="/"
+              onClick={(event) => { onCategorySelect("Todos"); setMobileMenuOpen(false); handleAnchorNavigate(event, "/"); }}
               className={`crivo-pill${activeCategory === "Todos" ? " active" : ""}`}
-              style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: "5px" }}
+              style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: "5px", textDecoration: "none" }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                 <polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
               Home
-            </button>
+            </a>
 
             {/* Separador */}
             <div style={{ width: "1px", height: "20px", background: "#e0e0ea", flexShrink: 0, alignSelf: "center" }} />
 
-            {/* Categorias — filtra "Todos" para não duplicar */}
-            {categories.filter(c => c !== "Todos").map((category) => (
-              <button
-                key={category}
-                onClick={() => {
-                  onCategorySelect(category);
-                  setMobileMenuOpen(false);
-                  const slug = category.toLowerCase()
-                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                    .replace(/\s+/g, "-");
-                  navigate("/" + slug);
-                }}
-                className={`crivo-pill${activeCategory === category ? " active" : ""}`}
-                style={{ flexShrink: 0 }}
-              >
-                {category}
-              </button>
-            ))}
+            {/* Categorias â€” filtra "Todos" para nÃ£o duplicar */}
+            {categories.filter(c => c !== "Todos").map((category) => {
+              const href = toCategoryPath(category);
+              return (
+                <a
+                  key={category}
+                  href={href}
+                  onClick={(event) => {
+                    onCategorySelect(category);
+                    setMobileMenuOpen(false);
+                    handleAnchorNavigate(event, href);
+                  }}
+                  className={`crivo-pill${activeCategory === category ? " active" : ""}`}
+                  style={{ flexShrink: 0, textDecoration: "none" }}
+                >
+                  {category}
+                </a>
+              );
+            })}
           </div>
         </div>
 
-        {/* ── BARRA AGORA ── */}
+        {/* â”€â”€ BARRA AGORA â”€â”€ */}
         <BarraAgora articles={articles} />
 
-        {/* ── BARRA MERCADO ── */}
+        {/* â”€â”€ BARRA MERCADO â”€â”€ */}
         <BarraCotacoes />
 
       </header>
     </>
   );
 }
+
+
+
+
+
+
+
+
+

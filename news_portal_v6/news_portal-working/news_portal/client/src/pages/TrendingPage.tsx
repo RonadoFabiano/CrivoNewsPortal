@@ -5,6 +5,7 @@ import NewsCard from "@/components/NewsCard";
 import Hero from "@/components/Hero";
 import { categories, NewsArticle } from "@/lib/newsData";
 import { fetchRanked } from "@/lib/api";
+import { applySeo, resetSeo } from "@/lib/seo";
 
 function categorySlug(cat: string) {
   return cat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "-");
@@ -33,19 +34,12 @@ export default function TrendingPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.title = "Trending — Notícias em Alta | CRIVO News";
-    const setMeta = (sel: string, val: string) => {
-      let el = document.querySelector(sel) as HTMLMetaElement | null;
-      if (!el) { el = document.createElement("meta"); const m = sel.match(/\[([^=\]]+)="([^"]+)"\]/); if (m) el.setAttribute(m[1], m[2]); document.head.appendChild(el); }
-      el.setAttribute("content", val);
-    };
-    setMeta('meta[name="description"]', "As notícias mais relevantes do momento, rankeadas por recência e cobertura. Curadoria automática por IA.");
-    setMeta('meta[property="og:title"]', "Trending — Notícias em Alta | CRIVO News");
-    setMeta('meta[property="og:url"]', "https://crivo.news/trending");
-    let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!link) { link = document.createElement("link"); link.rel = "canonical"; document.head.appendChild(link); }
-    link.href = "https://crivo.news/trending";
-    return () => { document.title = "CRIVO News"; };
+    applySeo({
+      title: "Trending - Noticias em Alta | CRIVO News",
+      description: "As noticias mais relevantes do momento, rankeadas por recencia e cobertura com curadoria automatica por IA.",
+      path: "/trending",
+    });
+    return () => resetSeo();
   }, []);
 
   useEffect(() => {

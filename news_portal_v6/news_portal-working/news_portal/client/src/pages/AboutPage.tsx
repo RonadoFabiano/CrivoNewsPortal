@@ -58,7 +58,7 @@ export default function AboutPage() {
 
         {/* Breadcrumb */}
         <nav style={{ fontSize: "13px", color: "#888", marginBottom: "32px" }}>
-          <span style={{ cursor: "pointer", color: "#b84400" }} onClick={() => navigate("/")}>Início</span>
+          <a href="/" style={{ color: "#b84400", textDecoration: "none" }}>Inicio</a>
           <span style={{ margin: "0 8px" }}>›</span>
           <span>Sobre</span>
         </nav>
@@ -96,15 +96,15 @@ export default function AboutPage() {
         </Section>
 
         <Section title="Fontes">
-          <p>Monitoramos veículos jornalísticos com redações estabelecidas e histórico de apuração responsável. A lista de fontes é revisada periodicamente. Se identificar um problema com alguma fonte ou notícia, entre em <span style={{ color: "#b84400", cursor: "pointer" }} onClick={() => navigate("/contato")}>contato</span>.</p>
+          <p>Monitoramos veículos jornalísticos com redações estabelecidas e histórico de apuração responsável. A lista de fontes é revisada periodicamente. Se identificar um problema com alguma fonte ou notícia, entre em <a href="/contato" style={{ color: "#b84400", textDecoration: "none" }}>contato</a>.</p>
         </Section>
 
         <div style={{ marginTop: "48px", padding: "24px", background: "#f8f8fc", borderRadius: "12px", borderLeft: "3px solid #b84400" }}>
           <p style={{ fontSize: "14px", color: "#555", lineHeight: "1.7" }}>
             Dúvidas, sugestões ou pedidos de correção? Acesse nossa página de{" "}
-            <span style={{ color: "#b84400", cursor: "pointer", fontWeight: 600 }} onClick={() => navigate("/contato")}>Contato</span>{" "}
+            <a href="/contato" style={{ color: "#b84400", textDecoration: "none", fontWeight: 600 }}>Contato</a>{" "}
             ou leia nossa{" "}
-            <span style={{ color: "#b84400", cursor: "pointer", fontWeight: 600 }} onClick={() => navigate("/politica-editorial")}>Política Editorial</span>.
+            <a href="/politica-editorial" style={{ color: "#b84400", textDecoration: "none", fontWeight: 600 }}>Politica Editorial</a>.
           </p>
         </div>
 

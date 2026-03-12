@@ -41,6 +41,7 @@ interface Props {
 export default function NewsCardCompact({ article }: Props) {
   const [, navigate] = useLocation();
   const [hovered, setHovered] = useState(false);
+  const href = `/noticia/${article.slug}`;
 
   const cat = article.category || "Geral";
   const catStyle = CAT_COLORS[cat] || { bg: "#f1f5f9", color: "#475569" };
@@ -49,15 +50,18 @@ export default function NewsCardCompact({ article }: Props) {
 
   return (
     <article
-      onClick={() => navigate(`/noticia/${article.slug}`)}
+      itemScope
+      itemType="https://schema.org/NewsArticle"
+    >
+      <a
+      href={href}
+      onClick={(event) => { event.preventDefault(); navigate(href); }}
       onMouseEnter={() => {
         setHovered(true);
         // Prefetch silencioso — popula o cache antes do clique
         fetchNewsBySlug(article.slug).catch(() => {});
       }}
       onMouseLeave={() => setHovered(false)}
-      itemScope
-      itemType="https://schema.org/NewsArticle"
       style={{
         display: "flex",
         gap: "14px",
@@ -70,6 +74,7 @@ export default function NewsCardCompact({ article }: Props) {
         boxShadow: hovered ? "0 4px 16px rgba(0,0,0,0.07)" : "none",
         transform: hovered ? "translateY(-2px)" : "translateY(0)",
         transition: "all 0.18s ease",
+        textDecoration: "none",
       }}
     >
       {/* Imagem à esquerda */}
@@ -186,6 +191,7 @@ export default function NewsCardCompact({ article }: Props) {
           </span>
         )}
       </div>
+      </a>
     </article>
   );
 }

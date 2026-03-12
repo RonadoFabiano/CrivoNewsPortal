@@ -33,7 +33,7 @@ function Sparkline({ label, color }: { label: string; color: string }) {
   );
 }
 
-function SignalChip({ item, onClick }: { item: TrendingItem; onClick: () => void }) {
+function SignalChip({ item, href, onClick }: { item: TrendingItem; href: string; onClick: (event: React.MouseEvent<HTMLAnchorElement>) => void }) {
   const [hovered, setHovered] = useState(false);
   const [count, setCount] = useState(item.count);
   const typeLabel = TYPE_LABELS[item.type] || "";
@@ -43,7 +43,8 @@ function SignalChip({ item, onClick }: { item: TrendingItem; onClick: () => void
     : item.type === "topic" ? "#16a34a" : "#b84400";
 
   return (
-    <button
+    <a
+      href={href}
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -114,7 +115,7 @@ function SignalChip({ item, onClick }: { item: TrendingItem; onClick: () => void
           100% { box-shadow: 0 0 0 0 ${chipColor}00; }
         }
       `}</style>
-    </button>
+    </a>
   );
 }
 
@@ -165,9 +166,20 @@ export default function TrendingSection() {
           paddingBottom: "4px",
           scrollbarWidth: "none", msOverflowStyle: "none",
         }}>
-          {items.map((item, i) => (
-            <SignalChip key={i} item={item} onClick={() => navigate("/" + item.slug)} />
-          ))}
+          {items.map((item, i) => {
+            const href = "/" + item.slug;
+            return (
+              <SignalChip
+                key={i}
+                item={item}
+                href={href}
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigate(href);
+                }}
+              />
+            );
+          })}
         </div>
       )}
     </section>

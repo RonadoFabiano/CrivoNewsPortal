@@ -41,9 +41,10 @@ export default function MaisLidas({ articles: propArticles }: { articles?: NewsA
 
       <div>
         {articles.map((a, i) => (
-          <div
+          <a
             key={a.slug}
-            onClick={() => navigate(`/noticia/${a.slug}`)}
+            href={`/noticia/${a.slug}`}
+            onClick={(event) => { event.preventDefault(); navigate(`/noticia/${a.slug}`); }}
             style={{
               display: "flex",
               gap: "12px",
@@ -51,6 +52,7 @@ export default function MaisLidas({ articles: propArticles }: { articles?: NewsA
               padding: "11px 0",
               borderBottom: i < 4 ? "1px solid #f0f0f6" : "none",
               cursor: "pointer",
+              textDecoration: "none",
             }}
             onMouseEnter={e => (e.currentTarget.style.paddingLeft = "6px")}
             onMouseLeave={e => (e.currentTarget.style.paddingLeft = "0")}
@@ -93,7 +95,7 @@ export default function MaisLidas({ articles: propArticles }: { articles?: NewsA
                 {a.source}
               </span>
             </div>
-          </div>
+          </a>
         ))}
       </div>
     </section>

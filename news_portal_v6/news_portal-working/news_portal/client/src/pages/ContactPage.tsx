@@ -31,7 +31,7 @@ export default function ContactPage() {
       <main style={{ maxWidth: "760px", margin: "0 auto", padding: "48px 24px" }}>
 
         <nav style={{ fontSize: "13px", color: "#888", marginBottom: "32px" }}>
-          <span style={{ cursor: "pointer", color: "#b84400" }} onClick={() => navigate("/")}>Início</span>
+          <a href="/" style={{ color: "#b84400", textDecoration: "none" }}>Inicio</a>
           <span style={{ margin: "0 8px" }}>›</span>
           <span>Contato</span>
         </nav>

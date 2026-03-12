@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { categories } from "@/lib/newsData";
 import { fetchClusters, Cluster } from "@/lib/api";
+import { applySeo, resetSeo } from "@/lib/seo";
 
 function categorySlug(cat: string) {
   return cat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "-");
@@ -19,18 +20,12 @@ export default function ClustersPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.title = "Clusters — Notícias Agrupadas | CRIVO News";
-    const setMeta = (sel: string, val: string) => {
-      let el = document.querySelector(sel) as HTMLMetaElement | null;
-      if (!el) { el = document.createElement("meta"); const m = sel.match(/\[([^=\]]+)="([^"]+)"\]/); if (m) el.setAttribute(m[1], m[2]); document.head.appendChild(el); }
-      el.setAttribute("content", val);
-    };
-    setMeta('meta[name="description"]', "Notícias agrupadas por assunto. Veja todos os ângulos de uma mesma história.");
-    setMeta('meta[property="og:title"]', "Clusters — Notícias Agrupadas | CRIVO News");
-    let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!link) { link = document.createElement("link"); link.rel = "canonical"; document.head.appendChild(link); }
-    link.href = "https://crivo.news/clusters";
-    return () => { document.title = "CRIVO News"; };
+    applySeo({
+      title: "Clusters - Noticias Agrupadas | CRIVO News",
+      description: "Noticias agrupadas por assunto para acompanhar varios angulos de uma mesma historia.",
+      path: "/clusters",
+    });
+    return () => resetSeo();
   }, []);
 
   useEffect(() => {

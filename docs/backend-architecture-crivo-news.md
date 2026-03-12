@@ -1,4 +1,4 @@
-# Arquitetura Backend - Crivo News
+﻿# Arquitetura Backend - Crivo News
 
 Este documento descreve a arquitetura atual do backend Spring do Crivo News de ponta a ponta: configuracao, coleta, persistencia, pipeline de processamento, IA, tokens, schedulers, APIs e o papel de cada classe principal.
 
@@ -29,6 +29,75 @@ Ponto chave de operacao:
 - O sistema nao roda em sequencia linear unica.
 - Existem varios `@Scheduled` ativos ao mesmo tempo.
 - O log cronologico mistura coleta nova, filas antigas do banco e jobs analiticos.
+
+## SEO e Indexacao
+
+A descoberta organica agora depende de um conjunto coordenado entre frontend e backend:
+
+- [SitemapController.java](C:/projetos/CrivoNewsPortal/news_portal_v6/backend-spring-slug-sitemap/backend-spring/src/main/java/com/globalpulse/news/api/SitemapController.java) gera o sitemap com paginas publicas, categorias, noticias, paises, pessoas, topicos e paginas de explica.
+- [robots.txt](C:/projetos/CrivoNewsPortal/news_portal_v6/backend-spring-slug-sitemap/backend-spring/src/main/resources/static/robots.txt) entrega a versao do backend.
+- [robots.txt](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/public/robots.txt) entrega a versao estatica do frontend.
+- [seo.ts](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/lib/seo.ts) centraliza canonical, meta description, robots, Open Graph e Twitter Cards.
+
+### Regras de indexacao
+
+Paginas com `index, follow`:
+- home
+- noticias
+- categorias
+- topicos
+- paises
+- pessoas
+- explica
+- sobre
+- contato
+- politica editorial
+- mapa
+
+Paginas com `noindex, follow`:
+- busca
+- 404
+
+Paginas com `noindex, nofollow`:
+- sistema
+
+### Links internos
+
+Para o Google percorrer melhor o site, as paginas institucionais, navegacao principal, cards editoriais e listas de tendencia passaram a usar links reais (`<a href>`) em vez de apenas `onClick + navigate()`.
+
+Arquivos com melhorias de navegacao interna:
+- [AboutPage.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/pages/AboutPage.tsx)
+- [ContactPage.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/pages/ContactPage.tsx)
+- [PoliticaEditorialPage.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/pages/PoliticaEditorialPage.tsx)
+- [ExplicaPage.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/pages/ExplicaPage.tsx)
+- [TrendingPage.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/pages/TrendingPage.tsx)
+- [ClustersPage.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/pages/ClustersPage.tsx)
+- [EntityPage.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/pages/EntityPage.tsx)
+- [CategoryPage.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/pages/CategoryPage.tsx)
+- [Header.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/components/Header.tsx)
+- [Hero.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/components/Hero.tsx)
+- [NewsCard.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/components/NewsCard.tsx)
+- [NewsCardCompact.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/components/NewsCardCompact.tsx)
+- [MaisLidas.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/components/MaisLidas.tsx)
+- [TrendingSection.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/components/TrendingSection.tsx)
+- [TopicosDestaque.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/components/TopicosDestaque.tsx)
+
+### Como ajustar
+
+Para alterar SEO de uma pagina publica, o ponto principal agora e `applySeo(...)` em [seo.ts](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/lib/seo.ts). As paginas de noticia continuam com logica propria em [NewsPage.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/pages/NewsPage.tsx) por causa do schema `NewsArticle` e dos metadados especificos de artigo.
+
+Campos ajustaveis por pagina:
+- titulo
+- descricao
+- caminho canonico
+- imagem social
+- tipo (`website` ou `article`)
+- politica de `robots`
+
+Para adicionar novas paginas ao sitemap, ajustar:
+- [SitemapController.java](C:/projetos/CrivoNewsPortal/news_portal_v6/backend-spring-slug-sitemap/backend-spring/src/main/java/com/globalpulse/news/api/SitemapController.java)
+- e garantir que a rota exista no frontend em [App.tsx](C:/projetos/CrivoNewsPortal/news_portal_v6/news_portal-working/news_portal/client/src/App.tsx)
+
 
 ## 2. Estrutura de Configuracao
 
@@ -783,3 +852,4 @@ Ainda pode existir texto antigo legado em classes historicas que nao foram total
 - [RankingService.java](C:/projetos/CrivoNewsPortal/news_portal_v6/backend-spring-slug-sitemap/backend-spring/src/main/java/com/globalpulse/news/service/RankingService.java)
 - [RecommendationService.java](C:/projetos/CrivoNewsPortal/news_portal_v6/backend-spring-slug-sitemap/backend-spring/src/main/java/com/globalpulse/news/service/RecommendationService.java)
 - [ExplicaService.java](C:/projetos/CrivoNewsPortal/news_portal_v6/backend-spring-slug-sitemap/backend-spring/src/main/java/com/globalpulse/news/service/ExplicaService.java)
+

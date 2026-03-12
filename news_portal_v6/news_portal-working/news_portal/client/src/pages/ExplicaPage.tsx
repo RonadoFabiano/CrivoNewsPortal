@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import NewsCard from "@/components/NewsCard";
 import { categories, NewsArticle } from "@/lib/newsData";
 import { fetchExplica, ExplicaResult } from "@/lib/api";
+import { applySeo, resetSeo } from "@/lib/seo";
 
 function categorySlug(cat: string) {
   return cat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "-");
@@ -31,35 +32,27 @@ export default function ExplicaPage() {
   const topicLabel = slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
   useEffect(() => {
-    document.title = `${topicLabel} — O que está acontecendo | CRIVO News`;
-    const setMeta = (sel: string, val: string) => {
-      let el = document.querySelector(sel) as HTMLMetaElement | null;
-      if (!el) { el = document.createElement("meta"); const m = sel.match(/\[([^=\]]+)="([^"]+)"\]/); if (m) el.setAttribute(m[1], m[2]); document.head.appendChild(el); }
-      el.setAttribute("content", val);
-    };
-    setMeta('meta[name="description"]', `Entenda tudo sobre ${topicLabel}. Resumo, contexto histórico e últimas notícias com curadoria de IA.`);
-    setMeta('meta[property="og:title"]', `${topicLabel} — O que está acontecendo | CRIVO News`);
-    setMeta('meta[property="og:url"]', `https://crivo.news/explica/${slug}`);
-    let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!link) { link = document.createElement("link"); link.rel = "canonical"; document.head.appendChild(link); }
-    link.href = `https://crivo.news/explica/${slug}`;
+    applySeo({
+      title: `${topicLabel} - O que esta acontecendo | CRIVO News`,
+      description: `Entenda tudo sobre ${topicLabel}. Resumo, contexto historico e ultimas noticias com curadoria de IA.`,
+      path: `/explica/${slug}`,
+    });
 
-    // Schema.org Article para a página Explica
     const existing = document.getElementById("schema-explica");
     if (existing) existing.remove();
     const s = document.createElement("script");
     s.id = "schema-explica"; s.type = "application/ld+json";
     s.textContent = JSON.stringify({
       "@context": "https://schema.org", "@type": "Article",
-      "headline": `O que está acontecendo: ${topicLabel}`,
+      "headline": `O que esta acontecendo: ${topicLabel}`,
       "description": `Entenda tudo sobre ${topicLabel}`,
       "url": `https://crivo.news/explica/${slug}`,
       "publisher": { "@type": "Organization", "name": "CRIVO News", "url": "https://crivo.news" },
       "inLanguage": "pt-BR"
     });
     document.head.appendChild(s);
-    return () => { document.title = "CRIVO News"; document.getElementById("schema-explica")?.remove(); };
-  }, [slug]);
+    return () => { resetSeo(); document.getElementById("schema-explica")?.remove(); };
+  }, [slug, topicLabel]);
 
   useEffect(() => {
     setLoading(true);
@@ -77,7 +70,7 @@ export default function ExplicaPage() {
       <main className="container section-spacing" style={{ maxWidth: "860px" }}>
         {/* Breadcrumb */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "32px", fontSize: "13px", color: "#999" }}>
-          <span style={{ cursor: "pointer", color: "#b84400" }} onClick={() => navigate("/")}>Home</span>
+          <a href="/" style={{ color: "#b84400", textDecoration: "none" }}>Home</a>
           <span>›</span>
           <span>Explica</span>
           <span>›</span>

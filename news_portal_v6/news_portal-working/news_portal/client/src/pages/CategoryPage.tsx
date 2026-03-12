@@ -5,8 +5,7 @@ import NewsCard from "@/components/NewsCard";
 import Hero from "@/components/Hero";
 import { categories, NewsArticle } from "@/lib/newsData";
 import { fetchNews } from "@/lib/api";
-
-const BASE_URL = "https://crivo.news";
+import { applySeo, resetSeo } from "@/lib/seo";
 
 // Slug da categoria para URL canônica
 function categorySlug(cat: string): string {
@@ -44,41 +43,13 @@ export default function CategoryPage({ category }: Props) {
 
   // SEO — atualiza title + meta tags da categoria
   useEffect(() => {
-    const slug    = categorySlug(category);
-    const title   = `${category} — CRIVO News`;
-    const desc    = `Últimas notícias de ${category} com curadoria de IA. Fatos filtrados sem ruído.`;
-    const canon   = `${BASE_URL}/${slug}`;
-
-    document.title = title;
-
-    const setMeta = (sel: string, attr: string, val: string) => {
-      let el = document.querySelector(sel) as HTMLMetaElement | null;
-      if (!el) {
-        el = document.createElement("meta");
-        const m = sel.match(/\[([^=\]]+)="([^"]+)"\]/);
-        if (m) el.setAttribute(m[1], m[2]);
-        document.head.appendChild(el);
-      }
-      el.setAttribute(attr, val);
-    };
-
-    setMeta('meta[name="description"]',        "content", desc);
-    setMeta('meta[property="og:title"]',       "content", title);
-    setMeta('meta[property="og:description"]', "content", desc);
-    setMeta('meta[property="og:url"]',         "content", canon);
-    setMeta('meta[property="og:type"]',        "content", "website");
-    setMeta('meta[property="og:site_name"]',   "content", "CRIVO News");
-
-    // Canonical link
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.rel = "canonical";
-      document.head.appendChild(canonical);
-    }
-    canonical.href = canon;
-
-    return () => { document.title = "CRIVO News"; };
+    const slug = categorySlug(category);
+    applySeo({
+      title: `${category} - CRIVO News`,
+      description: `Ultimas noticias de ${category} com curadoria de IA. Fatos filtrados sem ruido.`,
+      path: `/${slug}`,
+    });
+    return () => resetSeo();
   }, [category]);
 
   // Fetch artigos da categoria
