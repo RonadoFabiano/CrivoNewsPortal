@@ -15,10 +15,17 @@ public interface ProcessedArticleRepository extends JpaRepository<ProcessedArtic
     Optional<ProcessedArticle> findByLink(String link);
     Optional<ProcessedArticle> findByRawArticleId(Long rawArticleId);
 
-    // ── Feed principal ────────────────────────────────────────────
+    // Feed principal
 
     @Query("SELECT a FROM ProcessedArticle a WHERE a.aiTitle IS NOT NULL AND a.aiTitle <> '' ORDER BY a.publishedAt DESC")
     List<ProcessedArticle> findAllReady(Pageable pageable);
+
+    @Query("""
+        SELECT a.source, a.aiCategories
+        FROM ProcessedArticle a
+        WHERE a.aiTitle IS NOT NULL AND a.aiTitle <> ''
+        """)
+    List<Object[]> findSourceCategoryRows();
 
     @Query("""
         SELECT a FROM ProcessedArticle a
@@ -28,7 +35,7 @@ public interface ProcessedArticleRepository extends JpaRepository<ProcessedArtic
         """)
     List<ProcessedArticle> findByCategory(@Param("category") String category, Pageable pageable);
 
-    // ── Páginas SEO por tag (/noticias/{tag}) ─────────────────────
+    // Paginas SEO por tag (/noticias/{tag})
 
     @Query("""
         SELECT a FROM ProcessedArticle a
@@ -37,9 +44,8 @@ public interface ProcessedArticleRepository extends JpaRepository<ProcessedArtic
         """)
     List<ProcessedArticle> findByTag(@Param("tag") String tag, Pageable pageable);
 
-    // ── Páginas de entidade (/pais /pessoa /topico) ───────────────
+    // Paginas de entidade (/pais /pessoa /topico)
 
-    /** Artigos que mencionam um país específico nas entidades */
     @Query("""
         SELECT a FROM ProcessedArticle a
         WHERE a.entities IS NOT NULL
@@ -48,7 +54,6 @@ public interface ProcessedArticleRepository extends JpaRepository<ProcessedArtic
         """)
     List<ProcessedArticle> findByCountry(@Param("country") String country, Pageable pageable);
 
-    /** Artigos que mencionam uma pessoa específica */
     @Query("""
         SELECT a FROM ProcessedArticle a
         WHERE a.entities IS NOT NULL
@@ -60,11 +65,6 @@ public interface ProcessedArticleRepository extends JpaRepository<ProcessedArtic
         """)
     List<ProcessedArticle> findByPerson(@Param("person") String person, @Param("personSlug") String personSlug, Pageable pageable);
 
-    /**
-     * FIX 1: Artigos de um tópico — busca em aiTags E em entities.
-     * aiTags contém slugs dos tópicos (ex: "reforma-tributaria").
-     * entities contém o label original (ex: "Reforma Tributária").
-     */
     @Query("""
         SELECT a FROM ProcessedArticle a
         WHERE LOWER(a.aiTags) LIKE LOWER(CONCAT('%', :topicSlug, '%'))
@@ -77,12 +77,8 @@ public interface ProcessedArticleRepository extends JpaRepository<ProcessedArtic
         @Param("topicSlug") String topicSlug,
         Pageable pageable);
 
-    // ── Trending topics (últimas 12h) ─────────────────────────────
+    // Trending topics (ultimas 12h)
 
-    /**
-     * FIX 1: Todos os artigos recentes — com ou sem entities.
-     * TrendingService usa aiTags (disponível em todos) como fonte primária.
-     */
     @Query("""
         SELECT a FROM ProcessedArticle a
         WHERE a.publishedAt >= :since
@@ -90,7 +86,6 @@ public interface ProcessedArticleRepository extends JpaRepository<ProcessedArtic
         """)
     List<ProcessedArticle> findRecentAll(@Param("since") Instant since);
 
-    /** Mantido para compatibilidade — artigos recentes SÓ com entities */
     @Query("""
         SELECT a FROM ProcessedArticle a
         WHERE a.publishedAt >= :since
@@ -99,9 +94,8 @@ public interface ProcessedArticleRepository extends JpaRepository<ProcessedArtic
         """)
     List<ProcessedArticle> findRecentWithEntities(@Param("since") Instant since);
 
-    // ── Fila de entidades ─────────────────────────────────────────
+    // Fila de entidades
 
-    /** Artigos processados pelo Ollama mas sem extração de entidades ainda */
     @Query("""
         SELECT a FROM ProcessedArticle a
         WHERE a.entityStatus IS NULL
@@ -109,7 +103,6 @@ public interface ProcessedArticleRepository extends JpaRepository<ProcessedArtic
         """)
     List<ProcessedArticle> findPendingEntities(Pageable pageable);
 
-    /** Busca full-text em título, descrição, tags, entidades e fonte */
     @Query("""
         SELECT a FROM ProcessedArticle a
         WHERE

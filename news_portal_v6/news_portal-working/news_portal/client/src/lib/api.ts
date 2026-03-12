@@ -18,6 +18,7 @@ export type NewsArticle = {
   category: string;
   categories: string[];   // múltiplas categorias para filtros
   date: string;
+  publishedAt?: string;
   image: string;
   link: string;
   source: string;
@@ -256,3 +257,84 @@ export async function fetchHealth(): Promise<Record<string, unknown> | null> {
     return await res.json();
   } catch { return null; }
 }
+
+export interface TokenMetricCycle {
+  openedAt: string;
+  closedAt: string | null;
+  requests: number;
+  tokensIn: number;
+  tokensOut: number;
+  throttles: number;
+}
+
+export interface TokenMetricKey {
+  name: string;
+  status: string;
+  reqUsed: number;
+  reqLimit: number;
+  tokUsed: number;
+  tokLimit: number;
+  reqPct: number;
+  tokPct: number;
+  metrics: {
+    keyName: string;
+    totalRequests: number;
+    totalTokensIn: number;
+    totalTokensOut: number;
+    total429s: number;
+    currentCycle: TokenMetricCycle;
+    cycleHistory: TokenMetricCycle[];
+  };
+}
+
+export interface TokenMetricsResponse {
+  keys: TokenMetricKey[];
+  poolSize: number;
+  totalReqNow: number;
+  totalTokNow: number;
+  totalTokensAllTime: number;
+  effectiveTpmLimit: number;
+  timestamp: string;
+}
+
+export interface SourceCategoryStat {
+  category: string;
+  count: number;
+}
+
+export interface SourceStat {
+  source: string;
+  total: number;
+  dominantCategory: string;
+  categories: SourceCategoryStat[];
+}
+
+export interface SourceStatsResponse {
+  totalArticles: number;
+  totalSources: number;
+  sources: SourceStat[];
+  categoryTotals: SourceCategoryStat[];
+}
+
+export async function fetchTokenMetrics(): Promise<TokenMetricsResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE.replace(/\/api$/, "")}/api/admin/token-metrics`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+export async function fetchSourceStats(): Promise<SourceStatsResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE.replace(/\/api$/, "")}/api/admin/source-stats`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+
+

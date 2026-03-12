@@ -181,8 +181,13 @@ public class LlmKeyPool {
         int totalTok = slots.stream().mapToInt(KeySlot::tokenSum).sum();
         int totalReq = slots.stream().mapToInt(KeySlot::reqCount).sum();
         long totalTokensAllTime = slots.stream()
-                .mapToLong(s -> ((Number) ((Map<?,?>)s.metrics.toMap().get("totalTokensIn"))).longValue())
-                 .sum();
+                .mapToLong(s -> {
+                    Map<String, Object> metrics = s.metrics.toMap();
+                    long tokensIn = ((Number) metrics.getOrDefault("totalTokensIn", 0L)).longValue();
+                    long tokensOut = ((Number) metrics.getOrDefault("totalTokensOut", 0L)).longValue();
+                    return tokensIn + tokensOut;
+                })
+                .sum();
 
         result.put("keys",               keys);
         result.put("poolSize",           slots.size());
@@ -235,3 +240,4 @@ public class LlmKeyPool {
         }
     }
 }
+

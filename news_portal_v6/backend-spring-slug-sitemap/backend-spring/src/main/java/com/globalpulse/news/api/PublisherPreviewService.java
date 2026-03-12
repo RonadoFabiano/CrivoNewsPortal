@@ -9,13 +9,14 @@ import java.net.URI;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
 
 /**
- * Playwright NÃO é thread-safe quando múltiplas threads compartilham um Browser.
- * Solução: cada thread tem seu próprio par (Playwright + Browser) via ThreadLocal.
- * Todos os pares são registrados para shutdown correto ao encerrar a aplicação.
+ * Playwright NÃƒO Ã© thread-safe quando mÃºltiplas threads compartilham um Browser.
+ * SoluÃ§Ã£o: cada thread tem seu prÃ³prio par (Playwright + Browser) via ThreadLocal.
+ * Todos os pares sÃ£o registrados para shutdown correto ao encerrar a aplicaÃ§Ã£o.
  */
 @Service
 public class PublisherPreviewService {
@@ -41,7 +42,7 @@ public class PublisherPreviewService {
 
     @PreDestroy
     public void shutdown() {
-        log.info("[PW] Encerrando " + allInstances.size() + " instâncias do Playwright...");
+        log.info("[PW] Encerrando " + allInstances.size() + " instÃ¢ncias do Playwright...");
         for (PlaywrightBrowser pb : allInstances) {
             try { pb.browser().close(); } catch (Exception ignored) {}
             try { pb.playwright().close(); } catch (Exception ignored) {}
@@ -49,17 +50,17 @@ public class PublisherPreviewService {
     }
 
     /**
-     * Expõe o Browser da thread atual para uso externo (ex: ScraperOrchestrator).
-     * O Browser retornado é thread-local — cada thread tem o seu próprio.
+     * ExpÃµe o Browser da thread atual para uso externo (ex: ScraperOrchestrator).
+     * O Browser retornado Ã© thread-local â€” cada thread tem o seu prÃ³prio.
      */
     public Browser getBrowser() {
         return threadLocal.get().browser();
     }
 
     /**
-     * e extrai a og:image — tudo em uma sessão Playwright.
+     * e extrai a og:image â€” tudo em uma sessÃ£o Playwright.
      *
-     * @return String[2]: [finalUrl, imageUrl] — ambos podem ser null
+     * @return String[2]: [finalUrl, imageUrl] â€” ambos podem ser null
      */
     public String[] resolveUrlAndImage(String url) {
         log.info("[PW] resolveUrlAndImage() -> " + url);
@@ -75,7 +76,7 @@ public class PublisherPreviewService {
                     .setLocale("pt-BR")
             );
             page = ctx.newPage();
-            // Bloqueia recursos pesados desnecessários para extração de URL/imagem
+            // Bloqueia recursos pesados desnecessÃ¡rios para extraÃ§Ã£o de URL/imagem
             page.route("**/*.{woff,woff2,ttf,otf,eot,mp4,mp3,webm,ogg,wav,pdf,zip}", route -> route.abort());
             page.route("**/{ads,analytics,tracking,gtm,facebook,doubleclick}**", route -> route.abort());
             page.setDefaultTimeout(10000);
@@ -86,7 +87,7 @@ public class PublisherPreviewService {
             );
 
             String currentUrl = page.url();
-            log.info("[PW] URL após navigate: " + currentUrl);
+            log.info("[PW] URL apÃ³s navigate: " + currentUrl);
 
             // Aguarda o redirect JS do Google completar
             if (isGoogleNewsUrl(currentUrl)) {
@@ -95,18 +96,20 @@ public class PublisherPreviewService {
                     page.waitForURL(u -> !isGoogleNewsUrl(u),
                             new Page.WaitForURLOptions().setTimeout(4000));
                     currentUrl = page.url();
-                    log.info("[PW] URL após redirect: " + currentUrl);
+                    log.info("[PW] URL apÃ³s redirect: " + currentUrl);
                 } catch (Exception e) {
-                    log.warning("[PW] Redirect JS não ocorreu. Tentando extrair link do HTML...");
+                    log.warning("[PW] Redirect JS nÃ£o ocorreu. Tentando extrair link do HTML...");
                     Optional<String> extracted = extractLinkFromGooglePage(page);
-                    if (extracted.isPresent()) {
-                        log.info("[PW] Link extraído do HTML: " + extracted.get());
+                    if (extracted.isPresent() && !isBadResolvedUrl(extracted.get())) {
+                        log.info("[PW] Link extraÃ­do do HTML: " + extracted.get());
                         page.navigate(extracted.get(), new Page.NavigateOptions()
                                 .setTimeout(8000)
                                 .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
                         );
                         currentUrl = page.url();
-                        log.info("[PW] URL após navegar ao publisher: " + currentUrl);
+                        log.info("[PW] URL apÃ³s navegar ao publisher: " + currentUrl);
+                    } else if (extracted.isPresent()) {
+                        log.warning("[PW] Link extraÃ­do rejeitado: " + extracted.get());
                     }
                 }
             }
@@ -114,10 +117,15 @@ public class PublisherPreviewService {
             String finalUrl = currentUrl;
             String imageUrl = null;
 
-            if (!isGoogleNewsUrl(finalUrl)) {
+            if (isBadResolvedUrl(finalUrl)) {
+                log.warning("[PW] URL final rejeitada: " + finalUrl);
+                finalUrl = null;
+            }
+
+            if (finalUrl != null && !isGoogleNewsUrl(finalUrl)) {
                 imageUrl = extractBestImage(page, finalUrl);
             } else {
-                log.warning("[PW] Ainda no Google após todas as tentativas.");
+                log.warning("[PW] Ainda no Google apÃ³s todas as tentativas.");
             }
 
             log.info("[PW] RESULTADO -> url=" + finalUrl + " | img=" + imageUrl);
@@ -142,7 +150,7 @@ public class PublisherPreviewService {
         try {
             ctx = browser.newContext(new Browser.NewContextOptions().setUserAgent(ua()).setLocale("pt-BR"));
             page = ctx.newPage();
-            // Bloqueia recursos pesados desnecessários para extração de URL/imagem
+            // Bloqueia recursos pesados desnecessÃ¡rios para extraÃ§Ã£o de URL/imagem
             page.route("**/*.{woff,woff2,ttf,otf,eot,mp4,mp3,webm,ogg,wav,pdf,zip}", route -> route.abort());
             page.route("**/{ads,analytics,tracking,gtm,facebook,doubleclick}**", route -> route.abort());
             page.setDefaultTimeout(6000);
@@ -157,7 +165,7 @@ public class PublisherPreviewService {
         }
     }
 
-    // ===== Extrai a melhor imagem da página =====
+    // ===== Extrai a melhor imagem da pÃ¡gina =====
     private String extractBestImage(Page page, String baseUrl) {
         String og = normalize(contentOf(page, "meta[property='og:image']"), baseUrl);
         log.info("[PW]   og:image = " + og);
@@ -204,7 +212,7 @@ public class PublisherPreviewService {
                             "  return links[0] || null;\n" +
                             "}"
             );
-            if (result != null && !result.toString().isBlank() && !isGoogleNewsUrl(result.toString()))
+            if (result != null && !result.toString().isBlank() && !isGoogleNewsUrl(result.toString()) && !isBadResolvedUrl(result.toString()))
                 return Optional.of(result.toString());
         } catch (Exception e) {
             log.warning("[PW] extractLinkFromGooglePage erro: " + e.getMessage());
@@ -252,7 +260,54 @@ public class PublisherPreviewService {
         return true;
     }
 
+    private static boolean isBadResolvedUrl(String url) {
+        if (url == null || url.isBlank()) return true;
+
+        try {
+            URI uri = URI.create(url.trim());
+            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+            String path = uri.getPath() == null ? "" : uri.getPath().toLowerCase(Locale.ROOT);
+            String normalizedPath = path;
+            if (normalizedPath.length() > 1 && normalizedPath.endsWith("/")) {
+                normalizedPath = normalizedPath.substring(0, normalizedPath.length() - 1);
+            }
+
+            if (host.isBlank()) return true;
+            if (isGoogleNewsUrl(url)) return true;
+            if (host.contains("facebook.com") || host.contains("instagram.com") || host.contains("twitter.com") || host.contains("x.com")) return true;
+            if (normalizedPath.isBlank() || "/".equals(normalizedPath)) return true;
+            if (Set.of("/politica", "/brasil", "/economia", "/mundo", "/tilt", "/internacional",
+                    "/nacional", "/cotidiano", "/esportes", "/tecnologia", "/cultura",
+                    "/saude", "/educacao", "/justica", "/business", "/negocios").contains(normalizedPath)) return true;
+
+            String[] blockedPieces = {
+                    "/login", "/lostpw", "/wp-login", "/wp-admin", "/quem-somos", "/sobre", "/author/", "/autor/",
+                    "/tag/", "/tags/", "/categoria/", "/categorias/", "/coluna/", "/colunas/", "/colunista/",
+                    "/blog/", "/blogs/", "/videos/", "/video/", "/podcast/", "/podcasts/", "/forum/", "/forums/",
+                    "/resources/", "/editorialguidelines/", "/ao-vivo/", "/especiais/", "/guia-de-carreiras/",
+                    "/guia-de-compras/"
+            };
+            for (String blocked : blockedPieces) {
+                if (normalizedPath.contains(blocked)) return true;
+            }
+
+            String lastSegment = normalizedPath.substring(normalizedPath.lastIndexOf('/') + 1);
+            if (lastSegment.isBlank()) return true;
+            if (Set.of("politica", "brasil", "economia", "mundo", "internacional", "nacional",
+                    "cotidiano", "esportes", "tecnologia", "cultura", "saude", "educacao",
+                    "justica", "business", "negocios", "ultimas-noticias").contains(lastSegment)) return true;
+            if (!lastSegment.contains("-") && !lastSegment.matches(".*\\d.*") && lastSegment.length() < 12) return true;
+
+            return false;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
     private static String ua() {
         return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     }
 }
+
+
+
