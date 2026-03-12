@@ -4,6 +4,7 @@ import { fetchSearch, NewsArticle } from "@/lib/api";
 import Header from "@/components/Header";
 import NewsCardCompact from "@/components/NewsCardCompact";
 import { categories } from "@/lib/newsData";
+import { applySeo, resetSeo } from "@/lib/seo";
 
 function SkeletonCard() {
   return (
@@ -73,15 +74,29 @@ export default function BuscaPage() {
   }, []);
 
   useEffect(() => {
-    if (!query || query.trim().length < 2) return;
+    if (!query || query.trim().length < 2) {
+      applySeo({
+        title: "Busca - CRIVO News",
+        description: "Busque noticias por tema, pessoa, pais e categoria no CRIVO News.",
+        path: "/busca",
+        robots: "noindex, follow",
+      });
+      return () => resetSeo();
+    }
     setLoading(true);
     setSearched(false);
     setArticles([]);
-    document.title = `Busca: ${query} — CRIVO News`;
+    applySeo({
+      title: "Busca: " + query + " - CRIVO News",
+      description: "Resultados de busca para " + query + " no CRIVO News.",
+      path: "/busca?q=" + encodeURIComponent(query),
+      robots: "noindex, follow",
+    });
     fetchSearch(query, 60)
       .then(data => { setArticles(data); setSearched(true); })
       .catch(() => { setArticles([]); setSearched(true); })
       .finally(() => setLoading(false));
+    return () => resetSeo();
   }, [query]); // query é state — re-executa quando muda
 
   return (

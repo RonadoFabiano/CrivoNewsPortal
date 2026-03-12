@@ -1,21 +1,55 @@
-server:
+﻿server:
   port: 8081
   address: 0.0.0.0
 
 app:
   site:
     baseUrl: "${APP_BASE_URL:http://localhost:5173}"
+
+  lab:
+    only-source: "${APP_LAB_ONLY_SOURCE:}"
+    disable-workers: ${APP_LAB_DISABLE_WORKERS:false}
+
+  ingestion:
+    enable-rss: ${APP_INGESTION_ENABLE_RSS:true}
+    max-per-cycle: ${APP_INGESTION_MAX_PER_CYCLE:20}
+    initial-delay-ms: ${APP_INGESTION_INITIAL_DELAY_MS:15000}
+    fixed-delay-ms: ${APP_INGESTION_FIXED_DELAY_MS:300000}
+
   rss:
-    defaultFeed: "https://news.google.com/rss?hl=pt-BR&gl=BR&ceid=BR:pt-419"
+    enabled: ${APP_RSS_ENABLED:true}
+    defaultFeed: "${APP_RSS_DEFAULT_FEED:https://news.google.com/rss?hl=pt-BR&gl=BR&ceid=BR:pt-419}"
+    initial-delay-ms: ${APP_RSS_INITIAL_DELAY_MS:5000}
+    fixed-delay-ms: ${APP_RSS_FIXED_DELAY_MS:900000}
+    category-cache-ttl-minutes: ${APP_RSS_CATEGORY_CACHE_TTL_MINUTES:15}
+
+  scraper:
+    fetch-timeout-ms: ${APP_SCRAPER_FETCH_TIMEOUT_MS:20000}
+    max-per-portal: ${APP_SCRAPER_MAX_PER_PORTAL:0}
+    fixed-delay-ms: ${APP_SCRAPER_FIXED_DELAY_MS:900000}
+    cache-ttl-minutes: ${APP_SCRAPER_CACHE_TTL_MINUTES:30}
+    active-portals: []
+
+  scheduling:
+    pool-size: ${APP_SCHEDULING_POOL_SIZE:4}
+    await-termination-seconds: ${APP_SCHEDULING_AWAIT_TERMINATION_SECONDS:30}
+    thread-name-prefix: "${APP_SCHEDULING_THREAD_NAME_PREFIX:crivo-scheduler-}"
+
   cors:
     allowed-origins: "${APP_CORS_ORIGINS:*}"
+
   ai:
     worker:
-      enabled: true
-      delayMs: 40000
-      maxChars: 5000
-      maxRetries: 3
-
+      enabled: ${APP_AI_WORKER_ENABLED:true}
+      delayMs: ${APP_AI_WORKER_DELAY_MS:5000}
+      maxChars: ${APP_AI_WORKER_MAX_CHARS:5000}
+      maxRetries: ${APP_AI_WORKER_MAX_RETRIES:3}
+      batchSize: ${APP_AI_WORKER_BATCH_SIZE:3}
+    entity-worker:
+      enabled: ${APP_AI_ENTITY_WORKER_ENABLED:true}
+      initial-delay-ms: ${APP_AI_ENTITY_WORKER_INITIAL_DELAY_MS:75000}
+      delay-ms: ${APP_AI_ENTITY_WORKER_DELAY_MS:20000}
+      batch-size: ${APP_AI_ENTITY_WORKER_BATCH_SIZE:2}
 spring:
   profiles:
     active: local
@@ -51,28 +85,16 @@ spring:
         order_inserts: true
         order_updates: true
 
-# ── Ollama local ──────────────────────────────────────────────────────────
-#ai:
-#  ollama:
-#    baseUrl: "${OLLAMA_BASE_URL:http://localhost:11434}"
-#    model: "${OLLAMA_MODEL:llama3.2:3b}"
-#    timeoutSeconds: 300
-
-# ── Groq API ──────────────────────────────────────────────────────────────
 ai:
   groq:
     apiKey: "${AI_GROQ_APIKEY:}"
     apiKey2: "${AI_GROQ_APIKEY2:}"
-    model: "${AI_GROQ_MODEL:llama-3.3-70b-versatile}"
+    apiKey3: "${AI_GROQ_APIKEY3:}"
+    apiKey4: "${AI_GROQ_APIKEY4:}"
+    apiKey5: "${AI_GROQ_APIKEY5:}"
+    model: "${AI_GROQ_MODEL:llama-3.1-8b-instant}"
     timeoutSeconds: 90
 
-
-
-# ────────────────────────────────────────────────────────────────────────────
-# COMO CONFIGURAR:
-# Copie o arquivo .env.example para .env e preencha os valores reais.
-# O .env NÃO deve ser commitado no Git (já está no .gitignore).
-# ────────────────────────────────────────────────────────────────────────────
 logging:
   level:
     org.springframework.beans.factory: DEBUG

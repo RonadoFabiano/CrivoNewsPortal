@@ -3,6 +3,7 @@ package com.globalpulse.news.service;
 import com.globalpulse.news.api.NewsItem;
 import com.globalpulse.news.api.RssService;
 import com.globalpulse.news.api.ScraperOrchestrator;
+import com.globalpulse.news.config.AppRuntimeProperties;
 import com.globalpulse.news.db.RawArticle;
 import com.globalpulse.news.db.RawArticleRepository;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -11,8 +12,21 @@ import org.springframework.stereotype.Service;
 import java.net.URI;
 import java.text.Normalizer;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -20,75 +34,84 @@ import java.util.stream.Stream;
 public class NewsIngestionJob {
 
     private static final Logger log = Logger.getLogger(NewsIngestionJob.class.getName());
-    private static final int    MAX_PER_CYCLE      = 20;
-    private static final double JACCARD_THRESHOLD  = 0.60; // títulos >= 60% similares = duplicata
-    private static final int    DEDUP_WINDOW_HOURS = 24;   // só compara com artigos das últimas 24h
+    private static final double JACCARD_THRESHOLD = 0.60;
+    private static final int DEDUP_WINDOW_HOURS = 24;
+    private static final int MAX_SOURCE_LENGTH = 80;
 
     private static final Set<String> STOPWORDS = new HashSet<>(Arrays.asList(
-        "a","o","e","de","da","do","em","no","na","os","as","um","uma",
-        "com","para","por","que","se","ao","dos","das","nos","nas","mas",
-        "seu","sua","foi","são","está","como","mais","pelo","pela","após",
-        "sobre","entre","quando","também","pode","isso","esta","esse","diz"
+            "a", "o", "e", "de", "da", "do", "em", "no", "na", "os", "as", "um", "uma",
+            "com", "para", "por", "que", "se", "ao", "dos", "das", "nos", "nas", "mas",
+            "seu", "sua", "foi", "sao", "esta", "como", "mais", "pelo", "pela", "apos",
+            "sobre", "entre", "quando", "tambem", "pode", "isso", "esta", "esse", "diz"
     ));
 
-    private final RssService           rssService;
-    private final ScraperOrchestrator  scraperOrchestrator;
-    private final ArticleExtractor     extractor;
+    private final RssService rssService;
+    private final ScraperOrchestrator scraperOrchestrator;
+    private final ArticleExtractor extractor;
     private final RawArticleRepository repo;
-
-    // Cache em memória dos títulos recentes — evita queries ao banco a cada artigo
-    // Mapa: slug → tokens do título — populado no início de cada ciclo
+    private final AppRuntimeProperties runtimeProperties;
     private final Map<String, Set<String>> recentTitleTokens = new LinkedHashMap<>();
 
     public NewsIngestionJob(
             RssService rssService,
             ScraperOrchestrator scraperOrchestrator,
             ArticleExtractor extractor,
-            RawArticleRepository repo
+            RawArticleRepository repo,
+            AppRuntimeProperties runtimeProperties
     ) {
-        this.rssService          = rssService;
+        this.rssService = rssService;
         this.scraperOrchestrator = scraperOrchestrator;
-        this.extractor           = extractor;
-        this.repo                = repo;
+        this.extractor = extractor;
+        this.repo = repo;
+        this.runtimeProperties = runtimeProperties;
     }
 
-    @Scheduled(initialDelay = 15_000, fixedDelay = 300_000)
+    @Scheduled(
+            initialDelayString = "${app.ingestion.initial-delay-ms:15000}",
+            fixedDelayString = "${app.ingestion.fixed-delay-ms:300000}"
+    )
     public void run() {
-        try { ingestOnce(); }
-        catch (Exception e) {
-            log.warning("[INGESTION] Falhou: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+        try {
+            ingestOnce();
+        } catch (Exception e) {
+            log.warning("[INGESTION] Failed: " + e.getClass().getSimpleName() + " - " + e.getMessage());
         }
     }
 
     public void ingestOnce() {
-        log.info("═══════════════════════════════════════════════════");
-        log.info("[INGESTION] Iniciando coleta — " + java.time.LocalDateTime.now());
-        log.info("═══════════════════════════════════════════════════");
+        String cycleId = UUID.randomUUID().toString().substring(0, 8);
+        logCycle(cycleId, "==================================================");
+        logCycle(cycleId, "Starting ingestion at " + LocalDateTime.now());
+        logCycle(cycleId, "==================================================");
 
-        List<NewsItem> rss     = rssService.fetch(null, 80);
+        boolean rssEnabled = runtimeProperties.getIngestion().isEnableRss();
+        int maxPerCycle = runtimeProperties.getIngestion().getMaxPerCycle();
+
+        List<NewsItem> rss = rssEnabled ? rssService.fetch(null, 80) : List.of();
         List<NewsItem> scraped = scraperOrchestrator.fetchAll();
 
-        // Log por portal
-        Map<String, Long> portalCount = new java.util.TreeMap<>();
+        Map<String, Long> portalCount = new TreeMap<>();
         scraped.forEach(item -> {
-            if (item.source() != null)
-                portalCount.merge(item.source(), 1L, Long::sum);
+            if (item != null) {
+                String source = normalizeSource(item.source(), item.link());
+                portalCount.merge(source, 1L, Long::sum);
+            }
         });
-        log.info("[INGESTION] ── Resultado do Scraper ──");
-        portalCount.forEach((portal, count) ->
-            log.info("[INGESTION]   " + String.format("%-20s %3d itens", portal, count))
-        );
-        log.info("[INGESTION] RSS=" + rss.size() + " | Scraper=" + scraped.size()
-                + " | Total bruto=" + (rss.size() + scraped.size()));
 
-        // Combina e deduplica por slug dentro do lote atual
+        logCycle(cycleId, "Scraper results:");
+        portalCount.forEach((portal, count) ->
+                logCycle(cycleId, "  " + String.format("%-20s %3d items", portal, count))
+        );
+        logCycle(cycleId, "RSS=" + rss.size() + " | Scraper=" + scraped.size()
+                + " | TotalRaw=" + (rss.size() + scraped.size()));
+
         List<NewsItem> merged = Stream.concat(rss.stream(), scraped.stream())
                 .collect(java.util.stream.Collectors.collectingAndThen(
                         java.util.stream.Collectors.toMap(
                                 NewsItem::slug,
                                 n -> n,
                                 (a, b) -> (a.image() != null && !a.image().startsWith("/")) ? a : b,
-                                java.util.LinkedHashMap::new
+                                LinkedHashMap::new
                         ),
                         map -> new ArrayList<>(map.values())
                 ));
@@ -98,33 +121,32 @@ public class NewsIngestionJob {
                 Comparator.reverseOrder()
         ));
 
-        // Carrega títulos recentes do banco para o cache de deduplicação
-        loadRecentTitleCache();
+        loadRecentTitleCache(cycleId);
 
-        int inserted = 0, skippedUrl = 0, skippedTitle = 0;
+        int inserted = 0;
+        int skippedUrl = 0;
+        int skippedTitle = 0;
 
         for (NewsItem item : merged) {
-            if (item == null || item.link() == null || item.link().isBlank()) continue;
+            if (item == null || item.link() == null || item.link().isBlank()) {
+                continue;
+            }
 
-            // ── Camada 1: dedup por URL normalizada ──────────────────
             String canonicalUrl = normalizeUrl(item.link());
             if (repo.findByCanonicalUrl(canonicalUrl).isPresent()) {
                 skippedUrl++;
                 continue;
             }
 
-            // ── Camada 2: dedup por similaridade de título (Jaccard) ─
             if (item.title() != null && isTitleDuplicate(item.title())) {
-                log.info("[INGESTION] Título similar já existe, ignorando: " + safe(item.title()));
+                logCycle(cycleId, "Similar title already exists, skipping: " + safe(item.title()));
                 skippedTitle++;
                 continue;
             }
 
-            // Se o scraper já trouxe o HTML completo (portais Jsoup), usa direto
-            // Se veio do RSS (sem HTML), busca agora via ArticleExtractor
             String html = (item.fullHtml() != null && !item.fullHtml().isBlank())
-                ? item.fullHtml()
-                : extractor.fetchHtml(item.link());
+                    ? item.fullHtml()
+                    : extractor.fetchHtml(item.link());
 
             RawArticle raw = new RawArticle();
             raw.setCanonicalUrl(canonicalUrl);
@@ -135,7 +157,7 @@ public class NewsIngestionJob {
             raw.setNormalizeStatus(html.isBlank() ? "NORMALIZED" : "PENDING_NORMALIZE");
             raw.setRawContentText(null);
             raw.setImageUrl(item.image());
-            raw.setSource(item.source());
+            raw.setSource(normalizeSource(item.source(), canonicalUrl));
             raw.setOriginalCategory(item.category());
             raw.setPublishedAt(item.publishedAt() != null ? item.publishedAt() : Instant.now());
             raw.setAiStatus("PENDING");
@@ -143,154 +165,206 @@ public class NewsIngestionJob {
             try {
                 repo.save(raw);
                 inserted++;
-
-                // Adiciona ao cache para deduplicar os próximos itens do mesmo ciclo
                 recentTitleTokens.put(raw.getSlug(), tokenize(raw.getRawTitle()));
-
-                log.info("[INGESTION] Salvo PENDING: " + safe(item.title()));
+                logCycle(cycleId, "Saved PENDING: " + safe(item.title()));
             } catch (Exception e) {
-                log.fine("[INGESTION] Duplicado ignorado (constraint): " + item.link());
+                log.fine(prefix(cycleId) + "Duplicate ignored by constraint: " + item.link());
             }
 
-            if (inserted >= MAX_PER_CYCLE) break;
+            if (inserted >= maxPerCycle) {
+                break;
+            }
         }
 
-        log.info("═══════════════════════════════════════════════════");
-        log.info("[INGESTION] Ciclo concluído."
-                + " Inseridos=" + inserted
-                + " | SkipURL=" + skippedUrl
-                + " | SkipTítulo=" + skippedTitle);
-        log.info("[INGESTION] Banco → Total=" + repo.count()
+        logCycle(cycleId, "==================================================");
+        logCycle(cycleId, "Cycle finished. Inserted=" + inserted
+                + " | SkipUrl=" + skippedUrl
+                + " | SkipTitle=" + skippedTitle);
+        logCycle(cycleId, "Database -> Total=" + repo.count()
                 + " | PENDING=" + repo.countByAiStatus("PENDING")
                 + " | DONE=" + repo.countByAiStatus("DONE")
                 + " | FAILED=" + repo.countByAiStatus("FAILED"));
-        log.info("═══════════════════════════════════════════════════");
+        logCycle(cycleId, "==================================================");
     }
 
-    /**
-     * Carrega os títulos das últimas DEDUP_WINDOW_HOURS horas do banco
-     * para o cache em memória. Chamado no início de cada ciclo.
-     */
-    private void loadRecentTitleCache() {
+    private void loadRecentTitleCache(String cycleId) {
         recentTitleTokens.clear();
         Instant since = Instant.now().minus(DEDUP_WINDOW_HOURS, ChronoUnit.HOURS);
         try {
             repo.findRecentTitles(since).forEach(raw ->
-                recentTitleTokens.put(raw.getSlug(), tokenize(raw.getRawTitle()))
+                    recentTitleTokens.put(raw.getSlug(), tokenize(raw.getRawTitle()))
             );
-            log.info("[INGESTION] Cache de títulos carregado: " + recentTitleTokens.size() + " artigos recentes");
+            logCycle(cycleId, "Recent title cache loaded: " + recentTitleTokens.size() + " articles");
         } catch (Exception e) {
-            log.warning("[INGESTION] Falha ao carregar cache de títulos: " + e.getMessage());
+            log.warning(prefix(cycleId) + "Failed to load title cache: " + e.getMessage());
         }
     }
 
-    /**
-     * Verifica se um título é similar a algum artigo já existente.
-     * Usa Jaccard similarity com threshold de 0.60.
-     *
-     * Exemplos que SÃO detectados como duplicata (Jaccard >= 0.60):
-     *   "Fluminense anuncia contratação de Julián Millán"
-     *   "Fluminense anuncia reforço com Julián Millán"         → 0.67 ✓ bloqueado
-     *
-     *   "Ataque com drones iranianos atinge estação da CIA"
-     *   "Ataque com drones iranianos atinge estação da CIA"    → 1.00 ✓ bloqueado
-     *
-     * Exemplos que NÃO são bloqueados (notícias diferentes):
-     *   "Lula sanciona reforma tributária"
-     *   "Lula veta projeto de lei do Congresso"               → 0.20 ✗ passa
-     */
+    private void logCycle(String cycleId, String message) {
+        log.info(prefix(cycleId) + message);
+    }
+
+    private String prefix(String cycleId) {
+        return "[INGESTION cid=" + cycleId + "] ";
+    }
+
     private boolean isTitleDuplicate(String title) {
         Set<String> tokens = tokenize(title);
-        if (tokens.size() < 3) return false; // título muito curto — não compara
+        if (tokens.size() < 3) {
+            return false;
+        }
 
         for (Set<String> existing : recentTitleTokens.values()) {
-            if (jaccard(tokens, existing) >= JACCARD_THRESHOLD) return true;
+            if (jaccard(tokens, existing) >= JACCARD_THRESHOLD) {
+                return true;
+            }
         }
         return false;
     }
 
-    /**
-     * Tokeniza título para comparação:
-     * "Fluminense anuncia contratação de Julián Millán"
-     *  → {"fluminense", "anuncia", "contratacao", "julian", "millan"}
-     */
     private Set<String> tokenize(String text) {
-        if (text == null || text.isBlank()) return Collections.emptySet();
-        String normalized = Normalizer.normalize(text.toLowerCase(), Normalizer.Form.NFD)
-            .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-            .replaceAll("[^a-z0-9\\s]", " ");
-        Set<String> tokens = new HashSet<>();
-        for (String t : normalized.split("\\s+")) {
-            if (t.length() > 2 && !STOPWORDS.contains(t)) tokens.add(t);
+        if (text == null || text.isBlank()) {
+            return Collections.emptySet();
+        }
+        String normalized = Normalizer.normalize(text.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                .replaceAll("[^a-z0-9\\s]", " ");
+        Set<String> tokens = new LinkedHashSet<>();
+        for (String token : normalized.split("\\s+")) {
+            if (token.length() > 2 && !STOPWORDS.contains(token)) {
+                tokens.add(token);
+            }
         }
         return tokens;
     }
 
-    private double jaccard(Set<String> a, Set<String> b) {
-        if (a.isEmpty() || b.isEmpty()) return 0;
-        Set<String> inter = new HashSet<>(a); inter.retainAll(b);
-        Set<String> union = new HashSet<>(a); union.addAll(b);
-        return (double) inter.size() / union.size();
+    private String normalizeSource(String source, String url) {
+        String value = source != null ? source.trim() : "";
+        if (value.isBlank() || value.length() > MAX_SOURCE_LENGTH || looksCorrupted(value)) {
+            value = inferSourceFromUrl(url);
+        }
+        if (value.length() > MAX_SOURCE_LENGTH) {
+            value = value.substring(0, MAX_SOURCE_LENGTH);
+        }
+        return value.isBlank() ? "Unknown" : value;
     }
 
-    private String buildRawDescription(String rssDesc, String contentText) {
-        StringBuilder sb = new StringBuilder();
-        if (rssDesc != null && !rssDesc.isBlank()) sb.append(rssDesc.trim());
-        if (contentText != null && contentText.length() > 100) {
-            String preview = contentText.length() > 500
-                    ? contentText.substring(0, 500) + "..."
-                    : contentText;
-            if (sb.length() > 0) sb.append("\n\n");
-            sb.append(preview);
+    private boolean looksCorrupted(String value) {
+        return value.contains("Ã")
+                || value.contains("â")
+                || value.contains("Â")
+                || value.contains("�");
+    }
+
+    private String inferSourceFromUrl(String url) {
+        try {
+            String host = URI.create(url).getHost();
+            if (host == null || host.isBlank()) {
+                return "Unknown";
+            }
+            host = host.toLowerCase(Locale.ROOT);
+            if (host.startsWith("www.")) {
+                host = host.substring(4);
+            }
+            if (host.contains("metropoles.com")) return "Metropoles";
+            if (host.contains("g1.globo.com")) return "G1 Globo";
+            if (host.contains("cnnbrasil.com.br")) return "CNN Brasil";
+            if (host.contains("infomoney.com.br")) return "InfoMoney";
+            if (host.contains("forbes.com.br")) return "Forbes Brasil";
+            if (host.contains("jovempan.com.br")) return "Jovem Pan";
+            if (host.contains("bbc.com")) return "BBC Brasil";
+            if (host.contains("veja.abril.com.br")) return "Veja";
+            if (host.contains("exame.com")) return "Exame";
+            if (host.contains("claudiodantas.com.br")) return "Claudio Dantas";
+            if (host.contains("poder360.com.br")) return "Poder360";
+            if (host.contains("uol.com.br")) return "UOL";
+            String[] parts = host.split("\\.");
+            if (parts.length >= 2) {
+                return capitalizeToken(parts[parts.length - 2]);
+            }
+            return host;
+        } catch (Exception ignored) {
+            return "Unknown";
         }
-        return sb.toString();
+    }
+
+    private String capitalizeToken(String value) {
+        if (value == null || value.isBlank()) {
+            return "Unknown";
+        }
+        return Character.toUpperCase(value.charAt(0)) + value.substring(1);
+    }
+
+    private double jaccard(Set<String> a, Set<String> b) {
+        if (a.isEmpty() || b.isEmpty()) {
+            return 0;
+        }
+        Set<String> intersection = new HashSet<>(a);
+        intersection.retainAll(b);
+        Set<String> union = new HashSet<>(a);
+        union.addAll(b);
+        return (double) intersection.size() / union.size();
     }
 
     private String ensureUniqueSlug(String slug) {
-        if (repo.findBySlug(slug).isEmpty()) return slug;
+        if (repo.findBySlug(slug).isEmpty()) {
+            return slug;
+        }
         for (int i = 2; i < 100; i++) {
             String candidate = slug + "-" + i;
-            if (repo.findBySlug(candidate).isEmpty()) return candidate;
+            if (repo.findBySlug(candidate).isEmpty()) {
+                return candidate;
+            }
         }
         return slug + "-" + System.currentTimeMillis();
     }
 
     static String normalizeUrl(String rawUrl) {
-        if (rawUrl == null || rawUrl.isBlank()) return rawUrl;
+        if (rawUrl == null || rawUrl.isBlank()) {
+            return rawUrl;
+        }
         try {
             URI uri = new URI(rawUrl.trim());
             String query = uri.getQuery();
             String cleanQuery = null;
             if (query != null && !query.isBlank()) {
-                String[] TRACKING = {
-                    "utm_source","utm_medium","utm_campaign","utm_term","utm_content",
-                    "utm_id","ref","source","origin","mc_cid","mc_eid","fbclid",
-                    "gclid","yclid","_ga","trk","cid","sid"
+                String[] trackingKeys = {
+                        "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+                        "utm_id", "ref", "source", "origin", "mc_cid", "mc_eid", "fbclid",
+                        "gclid", "yclid", "_ga", "trk", "cid", "sid"
                 };
                 List<String> kept = new ArrayList<>();
                 for (String param : query.split("&")) {
-                    String key = param.split("=")[0].toLowerCase();
+                    String key = param.split("=")[0].toLowerCase(Locale.ROOT);
                     boolean tracking = false;
-                    for (String tp : TRACKING) {
-                        if (key.equals(tp) || key.startsWith("utm_")) { tracking = true; break; }
+                    for (String trackingKey : trackingKeys) {
+                        if (key.equals(trackingKey) || key.startsWith("utm_")) {
+                            tracking = true;
+                            break;
+                        }
                     }
-                    if (!tracking) kept.add(param);
+                    if (!tracking) {
+                        kept.add(param);
+                    }
                 }
                 cleanQuery = kept.isEmpty() ? null : String.join("&", kept);
             }
             String path = uri.getPath();
-            if (path != null && path.length() > 1 && path.endsWith("/"))
+            if (path != null && path.length() > 1 && path.endsWith("/")) {
                 path = path.substring(0, path.length() - 1);
-            return new URI(uri.getScheme(), uri.getAuthority().toLowerCase(),
-                    path, cleanQuery, null).toString();
+            }
+            return new URI(uri.getScheme(), uri.getAuthority().toLowerCase(Locale.ROOT), path, cleanQuery, null)
+                    .toString();
         } catch (Exception e) {
             return rawUrl.trim();
         }
     }
 
-    private String safe(String s) {
-        if (s == null) return "";
-        s = s.replaceAll("\\s+", " ").trim();
-        return s.length() > 80 ? s.substring(0, 80) + "..." : s;
+    private String safe(String value) {
+        if (value == null) {
+            return "";
+        }
+        String compact = value.replaceAll("\\s+", " ").trim();
+        return compact.length() > 80 ? compact.substring(0, 80) + "..." : compact;
     }
 }

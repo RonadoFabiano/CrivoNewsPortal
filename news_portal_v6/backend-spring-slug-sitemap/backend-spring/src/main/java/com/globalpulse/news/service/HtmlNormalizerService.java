@@ -1,5 +1,6 @@
 package com.globalpulse.news.service;
 
+import com.globalpulse.news.config.AppRuntimeProperties;
 import com.globalpulse.news.db.RawArticle;
 import com.globalpulse.news.db.RawArticleRepository;
 import org.jsoup.Jsoup;
@@ -95,14 +96,17 @@ public class HtmlNormalizerService {
     };
 
     private final RawArticleRepository repo;
+    private final AppRuntimeProperties runtimeProperties;
 
-    public HtmlNormalizerService(RawArticleRepository repo) {
+    public HtmlNormalizerService(RawArticleRepository repo, AppRuntimeProperties runtimeProperties) {
         this.repo = repo;
+        this.runtimeProperties = runtimeProperties;
     }
 
     // Roda a cada 10 segundos — processa logo após o scraper salvar
     @Scheduled(fixedDelay = 10_000, initialDelay = 20_000)
     public void processQueue() {
+        if (runtimeProperties.getLab().isDisableWorkers()) return;
         List<RawArticle> pending = repo.findPendingNormalize(PageRequest.of(0, BATCH_SIZE));
         if (pending.isEmpty()) return;
 

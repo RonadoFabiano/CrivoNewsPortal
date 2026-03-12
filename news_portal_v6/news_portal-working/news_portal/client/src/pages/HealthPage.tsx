@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { fetchHealth, fetchSourceStats, fetchTokenMetrics, type SourceCategoryStat, type SourceStat, type SourceStatsResponse, type TokenMetricKey, type TokenMetricsResponse } from "@/lib/api";
+import { applySeo, resetSeo } from "@/lib/seo";
 
 type Status = "OK" | "DEGRADED" | "loading";
 
@@ -168,9 +169,18 @@ export default function HealthPage() {
   };
 
   useEffect(() => {
+    applySeo({
+      title: "Sistema - CRIVO News",
+      description: "Painel operacional do sistema CRIVO News.",
+      path: "/sistema",
+      robots: "noindex, nofollow",
+    });
     load();
     const t = setInterval(load, 15000);
-    return () => clearInterval(t);
+    return () => {
+      clearInterval(t);
+      resetSeo();
+    };
   }, []);
 
   const health = data.health;

@@ -1,5 +1,6 @@
 package com.globalpulse.news.service;
 
+import com.globalpulse.news.config.AppRuntimeProperties;
 import com.globalpulse.news.ai.GroqSummarizer;
 import com.globalpulse.news.db.ProcessedArticle;
 import com.globalpulse.news.db.ProcessedArticleRepository;
@@ -33,19 +34,23 @@ public class WeeklyDigestJob {
     private final ProcessedArticleRepository procRepo;
     private final RawArticleRepository       rawRepo;
     private final GroqSummarizer             groq;
+    private final AppRuntimeProperties      runtimeProperties;
 
     public WeeklyDigestJob(
             ProcessedArticleRepository procRepo,
             RawArticleRepository rawRepo,
-            GroqSummarizer groq) {
+            GroqSummarizer groq,
+            AppRuntimeProperties runtimeProperties) {
         this.procRepo = procRepo;
         this.rawRepo  = rawRepo;
         this.groq     = groq;
+        this.runtimeProperties = runtimeProperties;
     }
 
     // Toda segunda-feira às 7h (horário do servidor)
     @Scheduled(cron = "0 0 7 * * MON")
     public void generateWeeklyDigest() {
+        if (runtimeProperties.getLab().isDisableWorkers()) return;
         log.info("[DIGEST] Gerando resumo semanal...");
         try {
             generate();

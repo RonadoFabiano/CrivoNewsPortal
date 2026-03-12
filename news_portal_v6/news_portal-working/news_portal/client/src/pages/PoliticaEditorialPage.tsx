@@ -2,19 +2,18 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { categories } from "@/lib/newsData";
+import { applySeo, resetSeo } from "@/lib/seo";
 
 export default function PoliticaEditorialPage() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    document.title = "Política Editorial — CRIVO News";
-    const setMeta = (sel: string, val: string) => {
-      let el = document.querySelector(sel) as HTMLMetaElement;
-      if (!el) { el = document.createElement("meta"); document.head.appendChild(el); }
-      el.setAttribute("content", val);
-    };
-    setMeta('meta[name="description"]',
-      "Conheça os princípios editoriais, critérios de curadoria e compromissos do CRIVO News com a qualidade da informação.");
+    applySeo({
+      title: "Politica Editorial - CRIVO News",
+      description: "Conheca os principios editoriais, criterios de curadoria e compromissos do CRIVO News com a qualidade da informacao.",
+      path: "/politica-editorial",
+    });
+    return () => resetSeo();
   }, []);
 
   return (

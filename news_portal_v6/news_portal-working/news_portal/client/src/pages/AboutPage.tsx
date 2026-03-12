@@ -2,25 +2,18 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { categories } from "@/lib/newsData";
-
-const BASE_URL = "https://crivo.news";
+import { applySeo, resetSeo, BASE_URL } from "@/lib/seo";
 
 export default function AboutPage() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    document.title = "Sobre o CRIVO News — A inteligência que separa o fato do ruído";
-    const setMeta = (sel: string, val: string) => {
-      let el = document.querySelector(sel) as HTMLMetaElement;
-      if (!el) { el = document.createElement("meta"); document.head.appendChild(el); }
-      el.setAttribute("content", val);
-    };
-    setMeta('meta[name="description"]',
-      "O CRIVO News é um portal de curadoria jornalística que usa inteligência artificial para filtrar, resumir e contextualizar as notícias mais relevantes do Brasil e do mundo.");
-    setMeta('meta[property="og:title"]', "Sobre o CRIVO News");
-    setMeta('meta[property="og:type"]', "website");
+    applySeo({
+      title: "Sobre o CRIVO News",
+      description: "Conheca o CRIVO News, como funciona a curadoria editorial e como o portal organiza as noticias do Brasil e do mundo.",
+      path: "/sobre",
+    });
 
-    // Schema.org Organization
     const existing = document.getElementById("schema-org");
     if (existing) existing.remove();
     const script = document.createElement("script");
@@ -31,10 +24,10 @@ export default function AboutPage() {
       "@type": "NewsMediaOrganization",
       "name": "CRIVO News",
       "url": BASE_URL,
-      "logo": `${BASE_URL}/logo.png`,
-      "description": "Portal de curadoria jornalística com inteligência artificial",
+      "logo": BASE_URL + "/logo.png",
+      "description": "Portal de curadoria jornalistica com inteligencia artificial",
       "foundingDate": "2026",
-      "publishingPrinciples": `${BASE_URL}/politica-editorial`,
+      "publishingPrinciples": BASE_URL + "/politica-editorial",
       "contactPoint": {
         "@type": "ContactPoint",
         "contactType": "editorial",
@@ -43,6 +36,10 @@ export default function AboutPage() {
       "sameAs": []
     });
     document.head.appendChild(script);
+    return () => {
+      resetSeo();
+      document.getElementById("schema-org")?.remove();
+    };
   }, []);
 
   return (

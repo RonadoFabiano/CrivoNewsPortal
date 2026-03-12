@@ -1,10 +1,22 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, Home } from "lucide-react";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
+import { applySeo, resetSeo } from "@/lib/seo";
 
 export default function NotFound() {
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    applySeo({
+      title: "404 - Pagina nao encontrada",
+      description: "Pagina nao encontrada no CRIVO News.",
+      path: "/404",
+      robots: "noindex, follow",
+    });
+    return () => resetSeo();
+  }, []);
 
   const handleGoHome = () => {
     setLocation("/");

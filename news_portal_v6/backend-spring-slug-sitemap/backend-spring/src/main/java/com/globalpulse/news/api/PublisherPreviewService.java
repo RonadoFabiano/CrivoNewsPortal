@@ -12,11 +12,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
-
 /**
- * Playwright NÃƒO Ã© thread-safe quando mÃºltiplas threads compartilham um Browser.
- * SoluÃ§Ã£o: cada thread tem seu prÃ³prio par (Playwright + Browser) via ThreadLocal.
- * Todos os pares sÃ£o registrados para shutdown correto ao encerrar a aplicaÃ§Ã£o.
+ * Playwright is not thread-safe when multiple threads share one Browser.
+ * Solution: each thread gets its own pair (Playwright + Browser) via ThreadLocal.
+ * All pairs are registered for proper shutdown when the application stops.
  */
 @Service
 public class PublisherPreviewService {
@@ -42,7 +41,7 @@ public class PublisherPreviewService {
 
     @PreDestroy
     public void shutdown() {
-        log.info("[PW] Encerrando " + allInstances.size() + " instÃ¢ncias do Playwright...");
+        log.info("[PW] Shutting down " + allInstances.size() + " Playwright instances...");
         for (PlaywrightBrowser pb : allInstances) {
             try { pb.browser().close(); } catch (Exception ignored) {}
             try { pb.playwright().close(); } catch (Exception ignored) {}
@@ -50,17 +49,16 @@ public class PublisherPreviewService {
     }
 
     /**
-     * ExpÃµe o Browser da thread atual para uso externo (ex: ScraperOrchestrator).
-     * O Browser retornado Ã© thread-local â€” cada thread tem o seu prÃ³prio.
+     * Exposes the current thread browser for external use (for example, ScraperOrchestrator).
+     * The returned browser is thread-local; each thread owns its own instance.
      */
     public Browser getBrowser() {
         return threadLocal.get().browser();
     }
 
     /**
-     * e extrai a og:image â€” tudo em uma sessÃ£o Playwright.
-     *
-     * @return String[2]: [finalUrl, imageUrl] â€” ambos podem ser null
+     * Resolves the final publisher URL and extracts og:image in one Playwright session.
+     * @return String[2]: [finalUrl, imageUrl] - both values can be null
      */
     public String[] resolveUrlAndImage(String url) {
         log.info("[PW] resolveUrlAndImage() -> " + url);
@@ -76,7 +74,7 @@ public class PublisherPreviewService {
                     .setLocale("pt-BR")
             );
             page = ctx.newPage();
-            // Bloqueia recursos pesados desnecessÃ¡rios para extraÃ§Ã£o de URL/imagem
+            // Block heavy resources that are not needed for URL/image extraction
             page.route("**/*.{woff,woff2,ttf,otf,eot,mp4,mp3,webm,ogg,wav,pdf,zip}", route -> route.abort());
             page.route("**/{ads,analytics,tracking,gtm,facebook,doubleclick}**", route -> route.abort());
             page.setDefaultTimeout(10000);
@@ -87,7 +85,7 @@ public class PublisherPreviewService {
             );
 
             String currentUrl = page.url();
-            log.info("[PW] URL apÃ³s navigate: " + currentUrl);
+            log.info("[PW] URL after navigate: " + currentUrl);
 
             // Aguarda o redirect JS do Google completar
             if (isGoogleNewsUrl(currentUrl)) {
@@ -96,20 +94,20 @@ public class PublisherPreviewService {
                     page.waitForURL(u -> !isGoogleNewsUrl(u),
                             new Page.WaitForURLOptions().setTimeout(4000));
                     currentUrl = page.url();
-                    log.info("[PW] URL apÃ³s redirect: " + currentUrl);
+                    log.info("[PW] URL after redirect: " + currentUrl);
                 } catch (Exception e) {
-                    log.warning("[PW] Redirect JS nÃ£o ocorreu. Tentando extrair link do HTML...");
+                    log.warning("[PW] JS redirect did not happen. Trying to extract link from HTML...");
                     Optional<String> extracted = extractLinkFromGooglePage(page);
                     if (extracted.isPresent() && !isBadResolvedUrl(extracted.get())) {
-                        log.info("[PW] Link extraÃ­do do HTML: " + extracted.get());
+                        log.info("[PW] Link extracted from HTML: " + extracted.get());
                         page.navigate(extracted.get(), new Page.NavigateOptions()
                                 .setTimeout(8000)
                                 .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
                         );
                         currentUrl = page.url();
-                        log.info("[PW] URL apÃ³s navegar ao publisher: " + currentUrl);
+                        log.info("[PW] URL after navigating to publisher: " + currentUrl);
                     } else if (extracted.isPresent()) {
-                        log.warning("[PW] Link extraÃ­do rejeitado: " + extracted.get());
+                        log.warning("[PW] Extracted link rejected: " + extracted.get());
                     }
                 }
             }
@@ -125,14 +123,14 @@ public class PublisherPreviewService {
             if (finalUrl != null && !isGoogleNewsUrl(finalUrl)) {
                 imageUrl = extractBestImage(page, finalUrl);
             } else {
-                log.warning("[PW] Ainda no Google apÃ³s todas as tentativas.");
+                log.warning("[PW] Still on Google after all attempts.");
             }
 
             log.info("[PW] RESULTADO -> url=" + finalUrl + " | img=" + imageUrl);
             return new String[]{finalUrl, imageUrl};
 
         } catch (Exception e) {
-            log.severe("[PW] ERRO em resolveUrlAndImage: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            log.severe("[PW] ERROR in resolveUrlAndImage: " + e.getClass().getSimpleName() + " - " + e.getMessage());
             return new String[]{null, null};
         } finally {
             try { if (page != null) page.close(); } catch (Exception ignored) {}
@@ -150,7 +148,7 @@ public class PublisherPreviewService {
         try {
             ctx = browser.newContext(new Browser.NewContextOptions().setUserAgent(ua()).setLocale("pt-BR"));
             page = ctx.newPage();
-            // Bloqueia recursos pesados desnecessÃ¡rios para extraÃ§Ã£o de URL/imagem
+            // Block heavy resources that are not needed for URL/image extraction
             page.route("**/*.{woff,woff2,ttf,otf,eot,mp4,mp3,webm,ogg,wav,pdf,zip}", route -> route.abort());
             page.route("**/{ads,analytics,tracking,gtm,facebook,doubleclick}**", route -> route.abort());
             page.setDefaultTimeout(6000);
@@ -165,7 +163,7 @@ public class PublisherPreviewService {
         }
     }
 
-    // ===== Extrai a melhor imagem da pÃ¡gina =====
+    // ===== Extract the best image from the page =====
     private String extractBestImage(Page page, String baseUrl) {
         String og = normalize(contentOf(page, "meta[property='og:image']"), baseUrl);
         log.info("[PW]   og:image = " + og);
@@ -196,7 +194,7 @@ public class PublisherPreviewService {
             log.info("[PW]   biggest img = " + biggest);
             if (isRealImageUrl(biggest)) return biggest;
         } catch (Exception e) {
-            log.warning("[PW]   evalOnSelectorAll erro: " + e.getMessage());
+            log.warning("[PW]   evalOnSelectorAll error: " + e.getMessage());
         }
 
         return null;
@@ -215,7 +213,7 @@ public class PublisherPreviewService {
             if (result != null && !result.toString().isBlank() && !isGoogleNewsUrl(result.toString()) && !isBadResolvedUrl(result.toString()))
                 return Optional.of(result.toString());
         } catch (Exception e) {
-            log.warning("[PW] extractLinkFromGooglePage erro: " + e.getMessage());
+            log.warning("[PW] extractLinkFromGooglePage error: " + e.getMessage());
         }
         return Optional.empty();
     }
@@ -308,6 +306,4 @@ public class PublisherPreviewService {
         return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     }
 }
-
-
 

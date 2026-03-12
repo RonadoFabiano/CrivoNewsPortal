@@ -14,17 +14,17 @@ import java.util.*;
 import java.util.logging.Logger;
 
 /**
- * NarrativeAnalyzer — usa Groq para:
+ * NarrativeAnalyzer Ã¢â‚¬â€ usa Groq para:
  *
- * 1. Classificar o TIPO de relação entre dois países
- *    Ex: Irã + Israel → "conflito" com descrição narrativa
+ * 1. Classificar o TIPO de relaÃƒÂ§ÃƒÂ£o entre dois paÃƒÂ­ses
+ *    Ex: IrÃƒÂ£ + Israel Ã¢â€ â€™ "conflito" com descriÃƒÂ§ÃƒÂ£o narrativa
  *
  * 2. Gerar o SPREAD PATH (como o evento se propagou)
- *    Ex: ["Irã", "Israel", "EUA", "petróleo", "bolsas"]
- *    com timestamps de quando cada nó entrou na narrativa
+ *    Ex: ["IrÃƒÂ£", "Israel", "EUA", "petrÃƒÂ³leo", "bolsas"]
+ *    com timestamps de quando cada nÃƒÂ³ entrou na narrativa
  *
  * 3. Gerar RESUMO NARRATIVO do cluster
- *    Um parágrafo explicando o que une os países naquele momento
+ *    Um parÃƒÂ¡grafo explicando o que une os paÃƒÂ­ses naquele momento
  *
  * Chamado pelo MapNarrativeWorker (job agendado) e com cache de 30min.
  */
@@ -34,36 +34,36 @@ public class NarrativeAnalyzer {
     private static final Logger log = Logger.getLogger(NarrativeAnalyzer.class.getName());
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-    // Tipos de relação possíveis entre países
+    // Tipos de relaÃƒÂ§ÃƒÂ£o possÃƒÂ­veis entre paÃƒÂ­ses
     public enum RelationType {
-        CONFLITO,      // guerra, ataques, tensão militar
-        DIPLOMACIA,    // negociações, acordos, reuniões
-        SANCAO,        // sanções econômicas, embargos
-        ALIANCA,       // apoio mútuo, tratados, cooperação
-        COMERCIO,      // relações comerciais, tarifas, trocas
-        CRISE,         // crise humanitária, desastres, refugiados
-        POLITICA,      // eleições, pressão política, declarações
-        OUTRO          // não classificável com clareza
+        CONFLITO,      // guerra, ataques, tensÃƒÂ£o militar
+        DIPLOMACIA,    // negociaÃƒÂ§ÃƒÂµes, acordos, reuniÃƒÂµes
+        SANCAO,        // sanÃƒÂ§ÃƒÂµes econÃƒÂ´micas, embargos
+        ALIANCA,       // apoio mÃƒÂºtuo, tratados, cooperaÃƒÂ§ÃƒÂ£o
+        COMERCIO,      // relaÃƒÂ§ÃƒÂµes comerciais, tarifas, trocas
+        CRISE,         // crise humanitÃƒÂ¡ria, desastres, refugiados
+        POLITICA,      // eleiÃƒÂ§ÃƒÂµes, pressÃƒÂ£o polÃƒÂ­tica, declaraÃƒÂ§ÃƒÂµes
+        OUTRO          // nÃƒÂ£o classificÃƒÂ¡vel com clareza
     }
 
     public record ConnectionAnalysis(
         String sourceCountry,
         String targetCountry,
         RelationType relationType,
-        String relationLabel,   // rótulo em português para o frontend
-        String narrativeSummary, // 1-2 frases explicando a conexão
+        String relationLabel,   // rÃƒÂ³tulo em portuguÃƒÂªs para o frontend
+        String narrativeSummary, // 1-2 frases explicando a conexÃƒÂ£o
         int confidence          // 0-100
     ) {}
 
     public record SpreadPath(
         List<SpreadNode> nodes,
-        String narrativeSummary  // parágrafo completo da narrativa
+        String narrativeSummary  // parÃƒÂ¡grafo completo da narrativa
     ) {}
 
     public record SpreadNode(
         String name,
         String type,             // "country", "topic", "actor"
-        String role,             // "origem", "resposta", "impacto", "consequência"
+        String role,             // "origem", "resposta", "impacto", "consequÃƒÂªncia"
         String enteredAt         // ISO timestamp aproximado
     ) {}
 
@@ -82,14 +82,14 @@ public class NarrativeAnalyzer {
             .build();
     }
 
-    // ── ANÁLISE DE CONEXÃO ENTRE DOIS PAÍSES ──────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ ANÃƒÂLISE DE CONEXÃƒÆ’O ENTRE DOIS PAÃƒÂSES Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /**
-     * Analisa a relação entre dois países a partir de manchetes reais.
+     * Analisa a relaÃƒÂ§ÃƒÂ£o entre dois paÃƒÂ­ses a partir de manchetes reais.
      *
-     * @param countryA     primeiro país
-     * @param countryB     segundo país
-     * @param headlines    lista de títulos de artigos que mencionam ambos (máx 10)
+     * @param countryA     primeiro paÃƒÂ­s
+     * @param countryB     segundo paÃƒÂ­s
+     * @param headlines    lista de tÃƒÂ­tulos de artigos que mencionam ambos (mÃƒÂ¡x 10)
      */
     public ConnectionAnalysis analyzeConnection(
             String countryA,
@@ -109,12 +109,12 @@ public class NarrativeAnalyzer {
             Manchetes:
             %s
             
-            Responda APENAS com JSON válido, sem markdown, sem explicação:
+            Responda APENAS com JSON vÃƒÂ¡lido, sem markdown, sem explicaÃƒÂ§ÃƒÂ£o:
             {
               "tipo": "CONFLITO|DIPLOMACIA|SANCAO|ALIANCA|COMERCIO|CRISE|POLITICA|OUTRO",
-              "rotulo": "texto curto em português (máx 3 palavras, ex: 'tensão militar')",
-              "resumo": "1-2 frases explicando a relação atual entre os dois países com base nas manchetes",
-              "confianca": número de 0 a 100
+              "rotulo": "texto curto em portuguÃƒÂªs (mÃƒÂ¡x 3 palavras, ex: 'tensÃƒÂ£o militar')",
+              "resumo": "1-2 frases explicando a relaÃƒÂ§ÃƒÂ£o atual entre os dois paÃƒÂ­ses com base nas manchetes",
+              "confianca": nÃƒÂºmero de 0 a 100
             }
             """.formatted(countryA, countryB, headlineText);
 
@@ -132,7 +132,7 @@ public class NarrativeAnalyzer {
             try { rel = RelationType.valueOf(tipo); }
             catch (Exception e) { rel = RelationType.OUTRO; }
 
-            log.info("[NARRATIVE] " + countryA + "↔" + countryB + " = " + tipo + " (" + conf + "%)");
+            log.info("[NARRATIVE] " + countryA + "Ã¢â€ â€" + countryB + " = " + tipo + " (" + conf + "%)");
             return new ConnectionAnalysis(countryA, countryB, rel, rotulo, resumo, conf);
 
         } catch (Exception e) {
@@ -141,24 +141,24 @@ public class NarrativeAnalyzer {
         }
     }
 
-    // ── SPREAD PATH — como o evento se propagou ───────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ SPREAD PATH Ã¢â‚¬â€ como o evento se propagou Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /**
-     * Gera o caminho de propagação narrativa a partir de artigos ordenados por tempo.
+     * Gera o caminho de propagaÃƒÂ§ÃƒÂ£o narrativa a partir de artigos ordenados por tempo.
      *
-     * @param articles  lista de (título, publishedAt ISO, países mencionados)
+     * @param articles  lista de (tÃƒÂ­tulo, publishedAt ISO, paÃƒÂ­ses mencionados)
      *                  ordenados do mais antigo ao mais recente
-     * @param mainCountry  país central da narrativa
+     * @param mainCountry  paÃƒÂ­s central da narrativa
      */
     public SpreadPath analyzeSpread(
             List<Map<String, Object>> articles,
             String mainCountry) {
 
         if (articles == null || articles.isEmpty()) {
-            return new SpreadPath(List.of(), "Sem dados suficientes para análise.");
+            return new SpreadPath(List.of(), "Sem dados suficientes para anÃƒÂ¡lise.");
         }
 
-        // Monta contexto compacto dos artigos (título + timestamp)
+        // Monta contexto compacto dos artigos (tÃƒÂ­tulo + timestamp)
         StringBuilder context = new StringBuilder();
         for (Map<String, Object> art : articles.stream().limit(15).toList()) {
             String title = String.valueOf(art.getOrDefault("title", ""));
@@ -167,35 +167,35 @@ public class NarrativeAnalyzer {
             if (!title.isBlank()) {
                 context.append("- [").append(ts.length() > 16 ? ts.substring(11, 16) : ts)
                        .append("] ").append(title);
-                if (!countries.isBlank()) context.append(" [países: ").append(countries).append("]");
+                if (!countries.isBlank()) context.append(" [paÃƒÂ­ses: ").append(countries).append("]");
                 context.append("\n");
             }
         }
 
         String prompt = """
-            Você é um analista de inteligência geopolítica.
+            VocÃƒÂª ÃƒÂ© um analista de inteligÃƒÂªncia geopolÃƒÂ­tica.
             Analise as manchetes abaixo sobre %s, ordenadas cronologicamente, e identifique como o evento se propagou.
             
-            Manchetes (hora UTC → título [países envolvidos]):
+            Manchetes (hora UTC Ã¢â€ â€™ tÃƒÂ­tulo [paÃƒÂ­ses envolvidos]):
             %s
             
-            Responda APENAS com JSON válido, sem markdown:
+            Responda APENAS com JSON vÃƒÂ¡lido, sem markdown:
             {
               "nos": [
                 {
-                  "nome": "nome do país ou tema (ex: Irã, petróleo, bolsas)",
+                  "nome": "nome do paÃƒÂ­s ou tema (ex: IrÃƒÂ£, petrÃƒÂ³leo, bolsas)",
                   "tipo": "country|topic|actor",
-                  "papel": "origem|resposta|impacto|consequência",
-                  "entrou": "hora aproximada HH:MM ou 'início'"
+                  "papel": "origem|resposta|impacto|consequÃƒÂªncia",
+                  "entrou": "hora aproximada HH:MM ou 'inÃƒÂ­cio'"
                 }
               ],
-              "resumo": "2-3 frases descrevendo como a narrativa evoluiu, quem agiu primeiro e quais foram as consequências"
+              "resumo": "2-3 frases descrevendo como a narrativa evoluiu, quem agiu primeiro e quais foram as consequÃƒÂªncias"
             }
             
             Regras:
-            - Máximo 6 nós
-            - O primeiro nó deve ser a origem do evento
-            - Inclua tanto países quanto temas (petróleo, bolsas, OTAN) se relevantes
+            - MÃƒÂ¡ximo 6 nÃƒÂ³s
+            - O primeiro nÃƒÂ³ deve ser a origem do evento
+            - Inclua tanto paÃƒÂ­ses quanto temas (petrÃƒÂ³leo, bolsas, OTAN) se relevantes
             - Seja factual, baseado nas manchetes
             """.formatted(mainCountry, context.toString());
 
@@ -213,13 +213,13 @@ public class NarrativeAnalyzer {
                         n.path("nome").asText("?"),
                         n.path("tipo").asText("topic"),
                         n.path("papel").asText("impacto"),
-                        n.path("entrou").asText("—")
+                        n.path("entrou").asText("Ã¢â‚¬â€")
                     ));
                 }
             }
 
             String summary = json.path("resumo").asText("");
-            log.info("[NARRATIVE] SpreadPath para " + mainCountry + ": " + nodes.size() + " nós");
+            log.info("[NARRATIVE] SpreadPath para " + mainCountry + ": " + nodes.size() + " nÃƒÂ³s");
             return new SpreadPath(nodes, summary);
 
         } catch (Exception e) {
@@ -228,7 +228,7 @@ public class NarrativeAnalyzer {
         }
     }
 
-    // ── HTTP + helpers ─────────────────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ HTTP + helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private String callGroq(String userPrompt, int maxTokens, double temperature) {
         try {
@@ -244,6 +244,7 @@ public class NarrativeAnalyzer {
             // ~500 input + ~500 output = ~1000 tokens por chamada narrativa
             // ~500 input + ~500 output = ~1000 tokens por chamada narrativa
             String activeKey = rateLimiter.acquire("NarrativeAnalyzer", 1000);
+            int[] usage = new int[]{0, 0};
             try {
                 HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(GROQ_URL))
@@ -257,7 +258,7 @@ public class NarrativeAnalyzer {
 
                 if (res.statusCode() == 429) {
                     rateLimiter.report429(activeKey);
-                    log.warning("[NARRATIVE] 429 — key penalizada");
+                    log.warning("[NARRATIVE] 429 Ã¢â‚¬â€ key penalizada");
                     return null;
                 }
                 if (res.statusCode() != 200) {
@@ -266,9 +267,12 @@ public class NarrativeAnalyzer {
                 }
 
                 JsonNode root = mapper.readTree(res.body());
+                JsonNode usageNode = root.path("usage");
+                usage[0] = usageNode.path("prompt_tokens").asInt(0);
+                usage[1] = usageNode.path("completion_tokens").asInt(0);
                 return root.path("choices").get(0).path("message").path("content").asText();
             } finally {
-                rateLimiter.release();
+                rateLimiter.release(usage[0], usage[1]);
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
@@ -290,7 +294,7 @@ public class NarrativeAnalyzer {
 
     private SpreadPath fallbackSpread(String country) {
         return new SpreadPath(
-            List.of(new SpreadNode(country, "country", "origem", "início")),
+            List.of(new SpreadNode(country, "country", "origem", "inÃƒÂ­cio")),
             ""
         );
     }

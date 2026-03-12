@@ -2,51 +2,39 @@ package com.globalpulse.news.ai;
 
 import com.globalpulse.news.ai.pool.LlmKeyPool;
 import com.globalpulse.news.ai.pool.LlmKeyPool.KeySlot;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
-/**
- * GroqRateLimiter v2 — suporta até 6 API keys com rotação automática.
- *
- * Design Patterns:
- *  - Facade: simplifica o uso do LlmKeyPool para o resto do sistema
- *  - Object Pool: gerencia N keys sem desperdício
- *
- * Limites Groq free tier (llama-3.3-70b-versatile):
- *   - 12.000 tokens/min por key
- *   - 25 req/min por key (margem de segurança)
- *
- * Com 6 keys: 72.000 tokens/min efetivos — sem throttling.
- */
 @Component
 public class GroqRateLimiter {
 
     private static final Logger log = Logger.getLogger(GroqRateLimiter.class.getName());
 
-    private static final int MAX_REQ_PER_KEY    = 25;
+    private record Lease(KeySlot slot, long acquiredAt, int estimatedTokens) {}
+
+    private static final int MAX_REQ_PER_KEY = 25;
     private static final int MAX_TOKENS_PER_KEY = 12_000;
 
-    // Até 6 keys configuráveis no application.yml
-    @Value("${ai.groq.apiKey:}")       private String key1;
-    @Value("${ai.groq.apiKey2:}")      private String key2;
-    @Value("${ai.groq.apiKey3:}")      private String key3;
-    @Value("${ai.groq.apiKey4:}")      private String key4;
-    @Value("${ai.groq.apiKey5:}")      private String key5;
-    @Value("${ai.groq.apiKey6:}")      private String key6;
+    @Value("${ai.groq.apiKey:}")  private String key1;
+    @Value("${ai.groq.apiKey2:}") private String key2;
+    @Value("${ai.groq.apiKey3:}") private String key3;
+    @Value("${ai.groq.apiKey4:}") private String key4;
+    @Value("${ai.groq.apiKey5:}") private String key5;
+    @Value("${ai.groq.apiKey6:}") private String key6;
 
     private LlmKeyPool pool;
-
-    // Guarda a key adquirida por thread para o release()
-    private final ThreadLocal<KeySlot> currentSlot = new ThreadLocal<>();
+    private final ThreadLocal<Lease> currentLease = new ThreadLocal<>();
 
     @PostConstruct
     public void init() {
-        List<String> keys  = new ArrayList<>();
+        List<String> keys = new ArrayList<>();
         List<String> names = new ArrayList<>();
         addIfPresent(keys, names, key1, "KEY-1");
         addIfPresent(keys, names, key2, "KEY-2");
@@ -62,6 +50,7 @@ public class GroqRateLimiter {
         }
 
         pool = new LlmKeyPool(keys, names, MAX_REQ_PER_KEY, MAX_TOKENS_PER_KEY);
+        log.info("[RATE-LIMITER] Keys carregadas: " + String.join(", ", names));
         log.info("[RATE-LIMITER] Pool iniciado: " + keys.size() + " keys | "
             + (MAX_TOKENS_PER_KEY * keys.size()) + " tokens/min efetivos");
     }
@@ -73,12 +62,9 @@ public class GroqRateLimiter {
         }
     }
 
-    // ── API pública (compatível com o código existente) ───────────────────────
-
-    /** Adquire uma key. Sempre chame release() depois. */
     public String acquire(String callerName, int estimatedTokens) throws InterruptedException {
         KeySlot slot = pool.acquire(callerName, estimatedTokens);
-        currentSlot.set(slot);
+        currentLease.set(new Lease(slot, slot.reservationTimestamp(), estimatedTokens));
         return slot.key;
     }
 
@@ -86,21 +72,25 @@ public class GroqRateLimiter {
         return acquire(callerName, 800);
     }
 
-    /** Libera a key com tokens reais (para métricas precisas) */
     public void release(int tokensIn, int tokensOut) {
-        KeySlot slot = currentSlot.get();
-        if (slot != null) {
-            pool.release(slot.name, tokensIn, tokensOut, true);
-            currentSlot.remove();
+        Lease lease = currentLease.get();
+        if (lease != null) {
+            pool.release(
+                lease.slot().name,
+                lease.acquiredAt(),
+                lease.estimatedTokens(),
+                tokensIn,
+                tokensOut,
+                true
+            );
+            currentLease.remove();
         }
     }
 
-    /** Compatibilidade com código antigo que chama só release() */
     public void release() {
         release(0, 0);
     }
 
-    /** Penaliza a key atual após 429 */
     public void report429(String apiKey) {
         pool.slots().stream()
             .filter(s -> s.key.equals(apiKey))
@@ -108,19 +98,18 @@ public class GroqRateLimiter {
             .ifPresent(s -> pool.report429(s.name));
     }
 
-    /** Status simplificado (compatível com código antigo) */
     public synchronized Map<String, Object> status() {
         return pool.dashboardStatus();
     }
 
-    /** Status completo para o dashboard */
     public Map<String, Object> dashboardStatus() {
         return pool.dashboardStatus();
     }
 
-    public int poolSize() { return pool.poolSize(); }
+    public int poolSize() {
+        return pool.poolSize();
+    }
 
-    /** Fecha ciclos de métricas a cada minuto */
     @Scheduled(fixedDelay = 60_000)
     public void flushMetricsCycles() {
         pool.flushMetricsCycles();

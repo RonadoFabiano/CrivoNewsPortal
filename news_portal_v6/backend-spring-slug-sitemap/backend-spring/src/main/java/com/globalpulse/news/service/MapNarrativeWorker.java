@@ -1,5 +1,6 @@
 package com.globalpulse.news.service;
 
+import com.globalpulse.news.config.AppRuntimeProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.globalpulse.news.ai.NarrativeAnalyzer;
@@ -47,18 +48,22 @@ public class MapNarrativeWorker {
     private final ProcessedArticleRepository procRepo;
     private final NarrativeAnalyzer          analyzer;
     private final ObjectMapper               mapper;
+    private final AppRuntimeProperties      runtimeProperties;
 
     public MapNarrativeWorker(ProcessedArticleRepository procRepo,
                                NarrativeAnalyzer analyzer,
-                               ObjectMapper mapper) {
+                               ObjectMapper mapper,
+                               AppRuntimeProperties runtimeProperties) {
         this.procRepo = procRepo;
         this.analyzer = analyzer;
         this.mapper   = mapper;
+        this.runtimeProperties = runtimeProperties;
     }
 
     // Roda 2min após boot (deixa AiSummaryWorker iniciar primeiro), depois a cada 30min
     @Scheduled(initialDelay = 120_000, fixedDelay = 1_800_000)
     public void run() {
+        if (runtimeProperties.getLab().isDisableWorkers()) return;
         try { analyzeNow(); }
         catch (Exception e) {
             log.warning("[MAP-NARRATIVE] Falhou: " + e.getMessage());

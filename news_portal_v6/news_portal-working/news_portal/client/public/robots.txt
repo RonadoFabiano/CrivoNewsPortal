@@ -2,6 +2,5 @@
 Allow: /
 Disallow: /sistema
 Disallow: /404
-Disallow: /api/
 
 Sitemap: https://crivo.news/sitemap.xml

@@ -17,8 +17,8 @@ import java.util.*;
 import java.util.logging.Logger;
 
 /**
- * GroqEntityExtractor v2 — extrai estrutura completa de dados de cada notícia.
- * Usa GroqRateLimiter para não estoura o limite da API.
+ * GroqEntityExtractor v2 Ã¢â‚¬â€ extrai estrutura completa de dados de cada notÃƒÂ­cia.
+ * Usa GroqRateLimiter para nÃƒÂ£o estoura o limite da API.
  */
 @Service
 public class GroqEntityExtractor {
@@ -77,6 +77,7 @@ public class GroqEntityExtractor {
         try {
             // ~500 input + ~400 output = ~900 tokens por chamada do EntityExtractor
             String activeKey = rateLimiter.acquire("GroqEntityExtractor", 900);
+            int[] usage = new int[]{0, 0};
             try {
                 String body = buildRequestBody(title.trim(), text);
 
@@ -94,7 +95,7 @@ public class GroqEntityExtractor {
 
                 if (res.statusCode() == 429) {
                     rateLimiter.report429(activeKey);
-                    log.warning("[GROQ-ENTITY] 429 — key penalizada por 60s");
+                    log.warning("[GROQ-ENTITY] 429 Ã¢â‚¬â€ key penalizada por 60s");
                     return null;
                 }
                 if (res.statusCode() < 200 || res.statusCode() >= 300) {
@@ -102,7 +103,11 @@ public class GroqEntityExtractor {
                     return buildEmpty();
                 }
 
-                String raw = mapper.readTree(res.body())
+                JsonNode root = mapper.readTree(res.body());
+                JsonNode usageNode = root.path("usage");
+                usage[0] = usageNode.path("prompt_tokens").asInt(0);
+                usage[1] = usageNode.path("completion_tokens").asInt(0);
+                String raw = root
                     .path("choices").get(0)
                     .path("message").path("content").asText("").trim();
 
@@ -112,41 +117,41 @@ public class GroqEntityExtractor {
                 return validate(raw.substring(start, end + 1), title, text);
 
             } finally {
-                rateLimiter.release();
+                rateLimiter.release(usage[0], usage[1]);
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             return null;
         } catch (Exception e) {
-            log.warning("[GROQ-ENTITY] Erro: " + e.getClass().getSimpleName() + " — " + e.getMessage());
+            log.warning("[GROQ-ENTITY] Erro: " + e.getClass().getSimpleName() + " Ã¢â‚¬â€ " + e.getMessage());
             return buildEmpty();
         }
     }
 
     private String buildRequestBody(String title, String fullText) throws Exception {
         String systemPrompt =
-            "Você extrai estrutura de dados jornalísticos. " +
-            "Responda APENAS com JSON válido. Nunca invente dados.";
+            "VocÃƒÂª extrai estrutura de dados jornalÃƒÂ­sticos. " +
+            "Responda APENAS com JSON vÃƒÂ¡lido. Nunca invente dados.";
 
         String userPrompt =
-            "TÍTULO: \"" + title + "\"\n" +
+            "TÃƒÂTULO: \"" + title + "\"\n" +
             "TEXTO: " + fullText + "\n\n" +
-            "Extraia APENAS o que está escrito. Responda com JSON:\n" +
+            "Extraia APENAS o que estÃƒÂ¡ escrito. Responda com JSON:\n" +
             "{\n" +
-            "  \"countries\": [\"países citados, máx 5\"],\n" +
-            "  \"people\": [\"nomes completos, máx 5\"],\n" +
-            "  \"organizations\": [\"empresas/órgãos/partidos, máx 4\"],\n" +
-            "  \"topics\": [\"assunto em 2-4 palavras, máx 3\"],\n" +
+            "  \"countries\": [\"paÃƒÂ­ses citados, mÃƒÂ¡x 5\"],\n" +
+            "  \"people\": [\"nomes completos, mÃƒÂ¡x 5\"],\n" +
+            "  \"organizations\": [\"empresas/ÃƒÂ³rgÃƒÂ£os/partidos, mÃƒÂ¡x 4\"],\n" +
+            "  \"topics\": [\"assunto em 2-4 palavras, mÃƒÂ¡x 3\"],\n" +
             "  \"location\": { \"state\": \"estado ou null\", \"city\": \"cidade ou null\" },\n" +
             "  \"scope\": \"nacional OU internacional OU ambos\",\n" +
             "  \"tone\": \"urgente OU negativo OU positivo OU neutro OU investigativo\",\n" +
             "  \"hasVictims\": true ou false,\n" +
-            "  \"victimCount\": número ou -1,\n" +
-            "  \"keyFact\": \"frase máx 15 palavras resumindo o fato\"\n" +
+            "  \"victimCount\": nÃƒÂºmero ou -1,\n" +
+            "  \"keyFact\": \"frase mÃƒÂ¡x 15 palavras resumindo o fato\"\n" +
             "}\n" +
-            "scope: 'nacional'=só Brasil, 'internacional'=outros países, 'ambos'=os dois.\n" +
+            "scope: 'nacional'=sÃƒÂ³ Brasil, 'internacional'=outros paÃƒÂ­ses, 'ambos'=os dois.\n" +
             "tone: 'urgente'=mortes/desastres, 'negativo'=crimes/conflitos, 'positivo'=conquistas, " +
-            "'investigativo'=denúncias, 'neutro'=resto.\n";
+            "'investigativo'=denÃƒÂºncias, 'neutro'=resto.\n";
 
         var messages = mapper.createArrayNode();
         messages.addObject().put("role", "system").put("content", systemPrompt);
@@ -252,14 +257,14 @@ public class GroqEntityExtractor {
             clean.put("keyFact", keyFact);
 
             String result = mapper.writeValueAsString(clean);
-            log.info("[GROQ-ENTITY] OK → countries=" + countries.size()
+            log.info("[GROQ-ENTITY] OK Ã¢â€ â€™ countries=" + countries.size()
                 + " people=" + people.size()
                 + " orgs=" + orgs.size()
                 + " scope=" + scope + " tone=" + tone);
             return result;
 
         } catch (Exception e) {
-            log.warning("[GROQ-ENTITY] Validação falhou: " + e.getMessage());
+            log.warning("[GROQ-ENTITY] ValidaÃƒÂ§ÃƒÂ£o falhou: " + e.getMessage());
             return buildEmpty();
         }
     }

@@ -2,18 +2,18 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { categories } from "@/lib/newsData";
+import { applySeo, resetSeo } from "@/lib/seo";
 
 export default function ContactPage() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    document.title = "Contato — CRIVO News";
-    const setMeta = (sel: string, val: string) => {
-      let el = document.querySelector(sel) as HTMLMetaElement;
-      if (!el) { el = document.createElement("meta"); document.head.appendChild(el); }
-      el.setAttribute("content", val);
-    };
-    setMeta('meta[name="description"]', "Entre em contato com a equipe do CRIVO News para sugestões, correções ou parcerias.");
+    applySeo({
+      title: "Contato - CRIVO News",
+      description: "Entre em contato com a equipe do CRIVO News para sugestoes, correcoes e assuntos editoriais.",
+      path: "/contato",
+    });
+    return () => resetSeo();
   }, []);
 
   return (
